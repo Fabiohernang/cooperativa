@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Análisis · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    .anal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:900px){ .anal-grid { grid-template-columns:1fr; } }
+    .desc-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .desc-bar-label { font-size: 13px; font-weight: 500; min-width: 140px; }
+    .desc-bar-track {
+      flex: 1;
+      height: 10px;
+      background: var(--gris6);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .desc-bar-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width .4s;
+    }
+    .desc-bar-val { font-family: var(--mono); font-size: 12px; min-width: 100px; text-align: right; }
+    .desc-bar-pct { font-size: 11px; color: var(--gris4); min-width: 36px; text-align: right; }
+
+    .cliente-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--gris6);
+      margin-bottom: 8px;
+      background: var(--blanco);
+    }
+    .cliente-row:hover { background: var(--gris8); }
+    .cliente-nombre { font-weight: 600; font-size: 13px; }
+    .cliente-detalle { font-size: 11px; color: var(--gris4); }
+    .cliente-monto { font-family: var(--mono); font-weight: 700; }
+    .cliente-monto.vencido { color: var(--rojo2); }
+    .cliente-monto.pendiente { color: var(--naranja2); }
+
+    .mes-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 120px;
+      padding: 10px 0 0;
+    }
+    .mes-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .mes-bar {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+      transition: height .3s;
+      min-height: 2px;
+      position: relative;
+    }
+    .mes-bar:hover::after {
+      content: attr(data-val);
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gris1);
+      color: var(--blanco);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      font-family: var(--mono);
+    }
+    .mes-etiq { font-size: 9px; color: var(--gris4); text-align: center; }
+
+    .buscador-seccion {
+      background: var(--gris8);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .buscador-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--gris4);
+      margin-bottom: 10px;
+    }
+    .buscador-result-grid {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .buscador-kpi {
+      text-align: center;
+      padding: 10px;
+      background: var(--blanco);
+      border-radius: var(--radius);
+      border: 1px solid var(--gris6);
+    }
+    .buscador-kpi .v { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+    .buscador-kpi .l { font-size: 10px; color: var(--gris4); text-transform: uppercase; margin-top: 3px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html" class="active"><span class="nav-icon">📈</span> Análisis</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user" id="nav-fecha">—</div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">📈 Análisis Financiero</div>
+      <div class="page-sub">Cobrado vs. pagado, descuentos, deudas de clientes y buscador de fletero.</div>
+    </div>
+  </div>
+
+  <!-- KPIs principales -->
+  <div class="kpi-grid" id="kpis-main" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px"></div>
+
+  <div class="anal-grid">
+
+    <!-- DESCUENTOS POR CONCEPTO -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">✂️ Descuentos aplicados a fleteros</div>
+        <div id="total-desc-label" style="font-family:var(--mono);font-size:13px;font-weight:600"></div>
+      </div>
+      <div class="card-body" id="panel-descuentos"></div>
+    </div>
+
+    <!-- DEUDA POR CLIENTE -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🏦 Cuánto nos deben los clientes</div>
+        <div style="font-size:12px;color:var(--gris4)">Solo facturas pendientes</div>
+      </div>
+      <div class="card-body" id="panel-clientes"></div>
+    </div>
+
+  </div>
+
+  <!-- EVOLUCIÓN MENSUAL -->
+  <div class="card mb-24" style="margin-top:20px">
+    <div class="card-header">
+      <div class="card-title">📅 Evolución mensual — Cobrado vs. Pagado a Fleteros</div>
+      <div style="display:flex;gap:12px;font-size:11px;align-items:center">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--verde2);border-radius:2px;display:inline-block"></span>Cobrado</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--naranja2);border-radius:2px;display:inline-block"></span>Pagado</span>
+      </div>
+    </div>
+    <div class="card-body" id="panel-chart"></div>
+  </div>
+
+  <!-- BUSCADOR DE FLETERO -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🔍 Buscador de Fletero</div>
+      <div style="font-size:12px;color:var(--gris4)">Todos los viajes y pagos de un fletero</div>
+    </div>
+    <div class="card-body">
+      <div class="filter-bar" style="margin-bottom:12px">
+        <input type="text" id="input-fletero" placeholder="Escribí el nombre del fletero..." oninput="buscarFletero()" style="width:300px">
+      </div>
+      <div id="panel-fletero">
+        <div class="empty-state"><div class="icon">🔍</div><p>Ingresá un nombre para buscar</p></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../js/db.js"></script>
+<script>
+  document.getElementById('nav-fecha').textContent =
+    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+
+  const HOY = hoy();
+
+  function renderKPIs() {
+    const viajes   = DB.Viajes.getAll();
+    const facturas = DB.Facturas.getAll();
+    const pagos    = DB.Pagos.getAll();
+
+    const facturado = viajes.filter(v=>v.factura).reduce((a,v)=>a+(v.importeIVA||0),0);
+    const cobrado   = facturas.reduce((a,f)=>a+(f.pago||0),0);
+    const pendiente = facturas.filter(f=>!f.pagada&&!f.anulada).reduce((a,f)=>a+(f.restante||0),0);
+    const vencido   = facturas.filter(f=>!f.pagada&&!f.anulada&&f.fechaVenc&&f.fechaVenc<HOY).reduce((a,f)=>a+(f.restante||0),0);
+    const pagado    = pagos.reduce((a,p)=>a+(p.impPagado||0),0);
+    const resultado = cobrado - pagado;
+
+    document.getElementById('kpis-main').innerHTML = `
+      <div class="kpi azul"><div class="kpi-label">Total Facturado</div><div class="kpi-value" style="font-size:16px">$${fmt(facturado)}</div><div class="kpi-sub">Imp+IVA c/factura</div></div>
+      <div class="kpi verde"><div class="kpi-label">Total Cobrado</div><div class="kpi-value" style="font-size:16px">$${fmt(cobrado)}</div></div>
+      <div class="kpi azul"><div class="kpi-label">Pendiente de Cobro</div><div class="kpi-value" style="font-size:16px">$${fmt(pendiente)}</div></div>
+      <div class="kpi rojo"><div class="kpi-label">⚠️ Saldo Vencido</div><div class="kpi-value rojo" style="font-size:16px">$${fmt(vencido)}</div></div>
+      <div class="kpi ${resultado>=0?'verde':'rojo'}">
+        <div class="kpi-label">Resultado (Cobrado−Pagado)</div>
+        <div class="kpi-value ${resultado>=0?'verde':'rojo'}" style="font-size:16px">$${fmt(resultado)}</div>
+      </div>
+    `;
+  }
+
+  function renderDescuentos() {
+    const pagos = DB.Pagos.getAll();
+    const conceptos = [
+      { key: 'comision',     label: 'Comisión Coop.',  color: '#2563a8' },
+      { key: 'cuota',        label: 'Cuota',            color: '#16a34a' },
+      { key: 'seguros',      label: 'Seguros',          color: '#d97706' },
+      { key: 'adelantos',    label: 'Adelantos',        color: '#9333ea' },
+      { key: 'combustible',  label: 'Combustible',      color: '#0891b2' },
+      { key: 'percepciones', label: 'Percepciones',     color: '#dc2626' },
+      { key: 'otro',         label: 'Otro',             color: '#64748b' },
+    ];
+    const totales = conceptos.map(c => ({
+      ...c,
+      total: pagos.reduce((a,p) => a + (p[c.key]||0), 0)
+    }));
+    const grand = totales.reduce((a,t) => a + t.total, 0);
+    document.getElementById('total-desc-label').textContent = '$' + fmt(grand);
+
+    if (grand === 0) {
+      document.getElementById('panel-descuentos').innerHTML =
+        '<div class="empty-state"><p>Sin datos de pagos aún</p></div>';
+      return;
+    }
+    document.getElementById('panel-descuentos').innerHTML = totales
+      .sort((a,b) => b.total - a.total)
+      .map(t => {
+        const pct = grand > 0 ? (t.total/grand*100) : 0;
+        return `<div class="desc-bar">
+          <div class="desc-bar-label">${t.label}</div>
+          <div class="desc-bar-track">
+            <div class="desc-bar-fill" style="width:${pct.toFixed(1)}%;background:${t.color}"></div>
+          </div>
+          <div class="desc-bar-val">$${fmt(t.total)}</div>
+          <div class="desc-bar-pct">${pct.toFixed(1)}%</div>
+        </div>`;
+      }).join('');
+  }
+
+  function renderClientes() {
+    const facturas = DB.Facturas.getAll();
+    const mapa = {};
+    facturas.filter(f => !f.pagada && !f.anulada && f.restante > 0).forEach(f => {
+      if (!mapa[f.cliente]) mapa[f.cliente] = { pendiente: 0, vencido: 0, cant: 0 };
+      mapa[f.cliente].pendiente += f.restante || 0;
+      mapa[f.cliente].cant++;
+      const venc = f.fechaVenc && f.fechaVenc < HOY;
+      if (venc) mapa[f.cliente].vencido += f.restante || 0;
+    });
+    const lista = Object.entries(mapa).sort((a,b) => b[1].pendiente - a[1].pendiente);
+    if (lista.length === 0) {
+      document.getElementById('panel-clientes').innerHTML =
+        '<div class="empty-state"><div class="icon">✅</div><p>Sin deudas pendientes</p></div>';
+      return;
+    }
+    document.getElementById('panel-clientes').innerHTML = lista.map(([nombre, d]) => `
+      <div class="cliente-row">
+        <div>
+          <div class="cliente-nombre">${nombre}</div>
+          <div class="cliente-detalle">${d.cant} factura${d.cant!==1?'s':''}${d.vencido>0?` · <span style="color:var(--rojo2)">${fmt(d.vencido/d.pendiente*100)}% vencido</span>`:''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="cliente-monto ${d.vencido===d.pendiente?'vencido':d.vencido>0?'pendiente':''}">$${fmt(d.pendiente)}</div>
+          ${d.vencido>0?`<div style="font-size:11px;color:var(--rojo2)">Vencido: $${fmt(d.vencido)}</div>`:''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderChart() {
+    const facturas = DB.Facturas.getAll();
+    const pagos    = DB.Pagos.getAll();
+    const ahora = new Date();
+    const meses = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      meses.push({ mes: d.getMonth()+1, anio: d.getFullYear(),
+        label: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()] + ' ' + String(d.getFullYear()).slice(2)
+      });
+    }
+    const datos = meses.map(m => {
+      const cobrado = facturas.filter(f => f.fechaPago && new Date(f.fechaPago).getMonth()+1===m.mes && new Date(f.fechaPago).getFullYear()===m.anio).reduce((a,f)=>a+(f.pago||0),0);
+      const pagado  = pagos.filter(p => p.fechaOP && new Date(p.fechaOP).getMonth()+1===m.mes && new Date(p.fechaOP).getFullYear()===m.anio).reduce((a,p)=>a+(p.impPagado||0),0);
+      return { ...m, cobrado, pagado };
+    });
+    const maxVal = Math.max(...datos.map(d => Math.max(d.cobrado, d.pagado)), 1);
+
+    document.getElementById('panel-chart').innerHTML = `
+      <div style="display:flex;gap:6px;height:140px;align-items:flex-end">
+        ${datos.map(d => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+            <div style="width:100%;display:flex;gap:3px;align-items:flex-end;height:120px">
+              <div style="flex:1;background:var(--verde2);border-radius:3px 3px 0 0;height:${Math.max(d.cobrado/maxVal*100,1)}%;opacity:.85;cursor:default;position:relative" title="Cobrado: $${fmt(d.cobrado)}"></div>
+              <div style="flex:1;background:var(--naranja2);border-radius:3px 3px 0 0;height:${Math.max(d.pagado/maxVal*100,1)}%;opacity:.85;cursor:default" title="Pagado: $${fmt(d.pagado)}"></div>
+            </div>
+            <div style="font-size:10px;color:var(--gris4);text-align:center;white-space:nowrap">${d.label}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--gris4);text-align:center">
+        Pasá el mouse por cada barra para ver el monto
+      </div>
+    `;
+  }
+
+  function buscarFletero() {
+    const q = document.getElementById('input-fletero').value.trim();
+    if (!q) {
+      document.getElementById('panel-fletero').innerHTML =
+        '<div class="empty-state"><div class="icon">🔍</div><p>Ingresá un nombre para buscar</p></div>';
+      return;
+    }
+    const viajes = DB.Viajes.getByFletero(q);
+    const pagos  = DB.Pagos.getByFletero(q);
+
+    if (viajes.length===0 && pagos.length===0) {
+      document.getElementById('panel-fletero').innerHTML =
+        `<div class="empty-state"><div class="icon">👤</div><p>Sin registros para "${q}"</p></div>`;
+      return;
+    }
+
+    const totIVA  = viajes.reduce((a,v)=>a+(v.importeIVA||0),0);
+    const totCom  = viajes.reduce((a,v)=>a+(v.comision||0),0);
+    const totMat  = viajes.reduce((a,v)=>a+(v.comisionMat||0),0);
+    const totPag  = pagos.reduce((a,p)=>a+(p.impPagado||0),0);
+    const totFact = pagos.reduce((a,p)=>a+(p.impFactura||0),0);
+    const totDesc = pagos.reduce((a,p)=>a+(p.comision||0)+(p.cuota||0)+(p.seguros||0)+(p.adelantos||0)+(p.combustible||0)+(p.percepciones||0)+(p.otro||0),0);
+
+    document.getElementById('panel-fletero').innerHTML = `
+      <div class="buscador-seccion">
+        <div class="buscador-label">Resumen — ${q}</div>
+        <div class="buscador-result-grid">
+          <div class="buscador-kpi"><div class="v">${viajes.length}</div><div class="l">Viajes</div></div>
+          <div class="buscador-kpi"><div class="v" style="color:var(--azul2)">$${fmt(totIVA)}</div><div class="l">Total Imp+IVA</div></div>
+          <div class="buscador-kpi"><div class="v" style="color:var(--verde2)">$${fmt(totPag)}</div><div class="l">Total Pagado</div></div>
+          <div class="buscador-kpi"><div class="v" style="color:var(--rojo2)">$${fmt(totDesc)}</div><div class="l">Total Descuentos</div></div>
+        </div>
+      </div>
+
+      ${viajes.length>0 ? `
+      <div class="section-title">Viajes (${viajes.length})</div>
+      <div class="table-wrap mb-24">
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Cliente</th><th>Factura</th><th>CTG</th>
+            <th class="text-right">KG</th><th class="text-right">Imp+IVA</th>
+            <th class="text-right">Comisión</th><th class="text-center">Liquid.</th>
+          </tr></thead>
+          <tbody>
+            ${viajes.map(v=>`<tr style="${v.liquidado?'background:#f0fdf4':''}">
+              <td>${fmtFecha(v.fecha)}</td>
+              <td class="fw-600">${v.cliente}</td>
+              <td class="mono">${v.factura||'—'}</td>
+              <td class="mono" style="font-size:11px">${v.ctg||'—'}</td>
+              <td class="mono text-right">${fmt(v.kg)}</td>
+              <td class="mono text-right fw-600">$${fmt(v.importeIVA)}</td>
+              <td class="mono text-right" style="color:var(--verde2)">$${fmt(v.comision)}</td>
+              <td class="text-center">${v.liquidado?'<span class="pill verde">✓</span>':'<span class="pill gris">—</span>'}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="4" class="fw-600">TOTAL</td>
+            <td></td>
+            <td class="text-right">$${fmt(totIVA)}</td>
+            <td class="text-right" style="color:var(--verde2)">$${fmt(totCom)}</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>` : ''}
+
+      ${pagos.length>0 ? `
+      <div class="section-title">Órdenes de Pago (${pagos.length})</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>OP</th><th>Fecha</th><th>Factura</th>
+            <th class="text-right">Imp. Fact.</th>
+            <th class="text-right">Descuentos</th>
+            <th class="text-right">Imp. Pagado</th>
+            <th>Medio</th>
+          </tr></thead>
+          <tbody>
+            ${pagos.map(p=>{
+              const desc=(p.comision||0)+(p.cuota||0)+(p.seguros||0)+(p.adelantos||0)+(p.combustible||0)+(p.percepciones||0)+(p.otro||0);
+              return `<tr>
+                <td class="mono fw-600">${p.nroOrden}</td>
+                <td>${fmtFecha(p.fechaOP)}</td>
+                <td class="mono">${p.factura||'—'}</td>
+                <td class="mono text-right">$${fmt(p.impFactura)}</td>
+                <td class="mono text-right" style="color:var(--rojo2)">$${fmt(desc)}</td>
+                <td class="mono text-right fw-600" style="color:var(--verde2)">$${fmt(p.impPagado)}</td>
+                <td><span class="pill gris">${p.medioPago||'—'}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="3" class="fw-600">TOTAL</td>
+            <td class="text-right">$${fmt(totFact)}</td>
+            <td class="text-right" style="color:var(--rojo2)">$${fmt(totDesc)}</td>
+            <td class="text-right" style="color:var(--verde2)">$${fmt(totPag)}</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>` : ''}
+    `;
+  }
+
+  renderKPIs();
+  renderDescuentos();
+  renderClientes();
+  renderChart();
+</script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viajes · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html" class="active"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user" id="nav-fecha">—</div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">📋 Viajes</div>
+      <div class="page-sub">Registrá cada viaje. CTG único obligatorio. Comisiones se calculan solas.</div>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo Viaje</button>
+  </div>
+
+  <!-- KPIs rápidos -->
+  <div class="kpi-grid" id="kpis-viajes" style="grid-template-columns:repeat(4,1fr)"></div>
+
+  <!-- Filtros -->
+  <div class="filter-bar">
+    <input type="text" id="filtro-fletero" placeholder="🔍 Buscar fletero..." oninput="renderTabla()" style="width:200px">
+    <input type="text" id="filtro-cliente" placeholder="🔍 Cliente..." oninput="renderTabla()" style="width:200px">
+    <input type="text" id="filtro-factura" placeholder="Nro factura" oninput="renderTabla()" style="width:130px">
+    <select id="filtro-liquidado" onchange="renderTabla()" style="width:150px">
+      <option value="">Todos</option>
+      <option value="no">Sin liquidar</option>
+      <option value="si">Liquidados</option>
+    </select>
+    <div class="spacer"></div>
+    <span id="contador" style="font-size:12px;color:var(--gris4)"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Factura</th>
+          <th>Fletero</th>
+          <th>Socio</th>
+          <th>CTG</th>
+          <th>Origen → Destino</th>
+          <th class="text-right">KG</th>
+          <th class="text-right">Tarifa</th>
+          <th class="text-right">Imp+IVA</th>
+          <th class="text-right">Comisión</th>
+          <th class="text-right">Comis. Mat.</th>
+          <th class="text-center">Liquid.</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body"></tbody>
+      <tfoot id="tabla-foot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL NUEVO/EDITAR VIAJE -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-titulo">Nuevo Viaje</div>
+      <button class="btn-close" onclick="cerrarModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-error" class="alert danger mb-16" style="display:none"></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="f-fecha">
+        </div>
+        <div class="form-group">
+          <label>Cliente *</label>
+          <input type="text" id="f-cliente" placeholder="Nombre del cliente">
+        </div>
+        <div class="form-group">
+          <label>Nro. Factura</label>
+          <input type="text" id="f-factura" placeholder="Dejar vacío si no tiene aún">
+        </div>
+        <div class="form-group">
+          <label>Fletero *</label>
+          <input type="text" id="f-fletero" placeholder="Apellido Nombre">
+        </div>
+        <div class="form-group">
+          <label>Socio</label>
+          <select id="f-socio">
+            <option value="SI">SI (6% comisión)</option>
+            <option value="NO">NO (10% comisión)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>CTG</label>
+          <input type="text" id="f-ctg" placeholder="Número CTG único">
+        </div>
+        <div class="form-group">
+          <label>Origen</label>
+          <input type="text" id="f-origen" placeholder="Localidad / Campo">
+        </div>
+        <div class="form-group">
+          <label>Destino</label>
+          <input type="text" id="f-destino" placeholder="Localidad / Puerto">
+        </div>
+        <div class="form-group">
+          <label>KM</label>
+          <input type="number" id="f-km" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Tarifa ($/tn) *</label>
+          <input type="number" id="f-tarifa" placeholder="0.00" step="0.01" oninput="calcularPreview()">
+        </div>
+        <div class="form-group">
+          <label>KG Liquidado *</label>
+          <input type="number" id="f-kg" placeholder="0.00" step="0.01" oninput="calcularPreview()">
+        </div>
+        <div class="form-group">
+          <label>Observaciones</label>
+          <input type="text" id="f-obs" placeholder="Opcional">
+        </div>
+      </div>
+
+      <!-- Preview calculado -->
+      <div style="margin-top:20px;padding:14px;background:var(--gris8);border-radius:var(--radius);border:1px solid var(--gris6)">
+        <div class="section-title" style="margin-bottom:10px">Cálculo automático</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">IMPORTE</div>
+            <div id="p-importe" style="font-family:var(--mono);font-weight:600">$0.00</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">IMP + IVA</div>
+            <div id="p-iva" style="font-family:var(--mono);font-weight:600;color:var(--azul2)">$0.00</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">COMISIÓN (6%/10%)</div>
+            <div id="p-com" style="font-family:var(--mono);font-weight:600;color:var(--verde2)">$0.00</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">COMIS. MATÍAS (1.5%)</div>
+            <div id="p-mat" style="font-family:var(--mono);font-weight:600;color:var(--naranja2)">$0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">💾 Guardar Viaje</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/db.js"></script>
+<script>
+  let editandoId = null;
+
+  document.getElementById('nav-fecha').textContent =
+    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+
+  function calcularPreview() {
+    const tarifa = parseFloat(document.getElementById('f-tarifa').value) || 0;
+    const kg     = parseFloat(document.getElementById('f-kg').value) || 0;
+    const socio  = document.getElementById('f-socio').value;
+    const factura = document.getElementById('f-factura').value.trim();
+    const imp    = tarifa * kg;
+    const iva    = imp * 1.21;
+    const pct    = socio === 'SI' ? 0.06 : 0.10;
+    const com    = iva * pct;
+    const mat    = factura ? iva * 0.015 : 0;
+    document.getElementById('p-importe').textContent = '$' + fmt(imp);
+    document.getElementById('p-iva').textContent     = '$' + fmt(iva);
+    document.getElementById('p-com').textContent     = '$' + fmt(com);
+    document.getElementById('p-mat').textContent     = '$' + fmt(mat);
+  }
+
+  document.getElementById('f-socio').addEventListener('change', calcularPreview);
+  document.getElementById('f-factura').addEventListener('input', calcularPreview);
+
+  function abrirModal(id = null) {
+    editandoId = id;
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('modal-titulo').textContent = id ? 'Editar Viaje' : 'Nuevo Viaje';
+    if (id) {
+      const v = DB.Viajes.getAll().find(v => v.id === id);
+      document.getElementById('f-fecha').value    = v.fecha;
+      document.getElementById('f-cliente').value  = v.cliente;
+      document.getElementById('f-factura').value  = v.factura;
+      document.getElementById('f-fletero').value  = v.fletero;
+      document.getElementById('f-socio').value    = v.socio;
+      document.getElementById('f-ctg').value      = v.ctg;
+      document.getElementById('f-origen').value   = v.origen;
+      document.getElementById('f-destino').value  = v.destino;
+      document.getElementById('f-km').value       = v.km;
+      document.getElementById('f-tarifa').value   = v.tarifa;
+      document.getElementById('f-kg').value       = v.kg;
+      document.getElementById('f-obs').value      = v.observaciones;
+    } else {
+      document.getElementById('f-fecha').value = hoy();
+      ['f-cliente','f-factura','f-fletero','f-ctg','f-origen','f-destino','f-km','f-tarifa','f-kg','f-obs'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f-socio').value = 'SI';
+    }
+    calcularPreview();
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    editandoId = null;
+  }
+
+  function guardar() {
+    const data = {
+      fecha: document.getElementById('f-fecha').value,
+      cliente: document.getElementById('f-cliente').value.trim(),
+      factura: document.getElementById('f-factura').value.trim(),
+      fletero: document.getElementById('f-fletero').value.trim(),
+      socio: document.getElementById('f-socio').value,
+      ctg: document.getElementById('f-ctg').value.trim(),
+      origen: document.getElementById('f-origen').value.trim(),
+      destino: document.getElementById('f-destino').value.trim(),
+      km: document.getElementById('f-km').value,
+      tarifa: document.getElementById('f-tarifa').value,
+      kg: document.getElementById('f-kg').value,
+      observaciones: document.getElementById('f-obs').value.trim(),
+    };
+    if (!data.fecha || !data.cliente || !data.fletero || !data.tarifa || !data.kg) {
+      mostrarError('Completá los campos obligatorios: Fecha, Cliente, Fletero, Tarifa y KG.');
+      return;
+    }
+    try {
+      if (editandoId) DB.Viajes.update(editandoId, data);
+      else DB.Viajes.add(data);
+      cerrarModal();
+      renderTabla();
+      renderKPIs();
+    } catch (e) { mostrarError(e.message); }
+  }
+
+  function mostrarError(msg) {
+    const el = document.getElementById('modal-error');
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = 'flex';
+  }
+
+  function toggleLiquidado(id, val) {
+    DB.Viajes.marcarLiquidado(id, val);
+    renderTabla();
+  }
+
+  function eliminar(id) {
+    if (!confirm('¿Eliminar este viaje?')) return;
+    DB.Viajes.delete(id);
+    renderTabla();
+    renderKPIs();
+  }
+
+  function renderKPIs() {
+    const todos = DB.Viajes.getAll();
+    const totIVA = todos.reduce((a,v) => a + (v.importeIVA||0), 0);
+    const totCom = todos.reduce((a,v) => a + (v.comision||0), 0);
+    const totMat = todos.reduce((a,v) => a + (v.comisionMat||0), 0);
+    const pendLiq = todos.filter(v => !v.liquidado).length;
+    document.getElementById('kpis-viajes').innerHTML = `
+      <div class="kpi azul"><div class="kpi-label">Total Viajes</div><div class="kpi-value">${todos.length}</div><div class="kpi-icon">📋</div></div>
+      <div class="kpi verde"><div class="kpi-label">Total Imp+IVA</div><div class="kpi-value" style="font-size:17px">$${fmt(totIVA)}</div><div class="kpi-icon">💰</div></div>
+      <div class="kpi naranja"><div class="kpi-label">Comisión Total</div><div class="kpi-value" style="font-size:17px">$${fmt(totCom)}</div><div class="kpi-icon">📊</div></div>
+      <div class="kpi ${pendLiq>0?'rojo':'verde'}"><div class="kpi-label">Sin Liquidar</div><div class="kpi-value ${pendLiq>0?'rojo':''}">${pendLiq}</div><div class="kpi-icon">⏳</div></div>
+    `;
+  }
+
+  function renderTabla() {
+    const filtFlet = document.getElementById('filtro-fletero').value.toLowerCase();
+    const filtCli  = document.getElementById('filtro-cliente').value.toLowerCase();
+    const filtFact = document.getElementById('filtro-factura').value.toLowerCase();
+    const filtLiq  = document.getElementById('filtro-liquidado').value;
+
+    let datos = DB.Viajes.getAll();
+    if (filtFlet) datos = datos.filter(v => v.fletero.toLowerCase().includes(filtFlet));
+    if (filtCli)  datos = datos.filter(v => v.cliente.toLowerCase().includes(filtCli));
+    if (filtFact) datos = datos.filter(v => String(v.factura).toLowerCase().includes(filtFact));
+    if (filtLiq === 'no') datos = datos.filter(v => !v.liquidado);
+    if (filtLiq === 'si') datos = datos.filter(v =>  v.liquidado);
+
+    document.getElementById('contador').textContent = `${datos.length} viaje${datos.length!==1?'s':''}`;
+
+    const totIVA = datos.reduce((a,v)=>a+(v.importeIVA||0),0);
+    const totCom = datos.reduce((a,v)=>a+(v.comision||0),0);
+    const totMat = datos.reduce((a,v)=>a+(v.comisionMat||0),0);
+
+    if (datos.length === 0) {
+      document.getElementById('tabla-body').innerHTML =
+        '<tr><td colspan="15"><div class="empty-state"><div class="icon">📋</div><p>Sin viajes. Cargá el primero →</p></div></td></tr>';
+      document.getElementById('tabla-foot').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('tabla-body').innerHTML = datos.map((v, i) => `
+      <tr style="${v.liquidado ? 'background:#f0fdf4' : ''}">
+        <td class="mono color-gris">${v.id_viaje}</td>
+        <td>${fmtFecha(v.fecha)}</td>
+        <td class="fw-600">${v.cliente}</td>
+        <td class="mono">${v.factura || '<span class="color-gris">—</span>'}</td>
+        <td>${v.fletero}</td>
+        <td class="text-center"><span class="pill ${v.socio==='SI'?'verde':'azul'}">${v.socio}</span></td>
+        <td class="mono" style="${!v.ctg?'color:var(--gris5)':''}">${v.ctg || '—'}</td>
+        <td style="color:var(--gris4)">${v.origen || '—'} → ${v.destino || '—'}</td>
+        <td class="mono text-right">${fmt(v.kg)}</td>
+        <td class="mono text-right">$${fmt(v.tarifa)}</td>
+        <td class="mono text-right fw-600">$${fmt(v.importeIVA)}</td>
+        <td class="mono text-right" style="color:var(--verde2)">$${fmt(v.comision)}</td>
+        <td class="mono text-right" style="color:var(--naranja2)">$${fmt(v.comisionMat)}</td>
+        <td class="text-center">
+          <label style="cursor:pointer">
+            <input type="checkbox" ${v.liquidado?'checked':''} onchange="toggleLiquidado('${v.id}', this.checked)">
+          </label>
+        </td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="abrirModal('${v.id}')">✏️</button>
+          <button class="btn btn-ghost btn-sm" onclick="eliminar('${v.id}')" style="color:var(--rojo2)">🗑</button>
+        </td>
+      </tr>
+    `).join('');
+
+    document.getElementById('tabla-foot').innerHTML = `
+      <tr>
+        <td colspan="10" class="fw-600">TOTALES (${datos.length} viajes)</td>
+        <td class="text-right">$${fmt(totIVA)}</td>
+        <td class="text-right" style="color:var(--verde2)">$${fmt(totCom)}</td>
+        <td class="text-right" style="color:var(--naranja2)">$${fmt(totMat)}</td>
+        <td colspan="2"></td>
+      </tr>
+    `;
+  }
+
+  renderKPIs();
+  renderTabla();
+</script>
+</body>
+</html>
