@@ -56,6 +56,11 @@
 
 <script type="module" src="js/nav.js"></script>
 <script>
+  if (typeof hoy === 'undefined') window.hoy = () => new Date().toISOString().slice(0,10);
+  if (typeof fmt === 'undefined') window.fmt = n => n===undefined||n===null||n===''?'—':Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (typeof fmtFecha === 'undefined') window.fmtFecha = str => { if(!str)return'—'; const[y,m,d]=str.split('-'); return d+'/'+m+'/'+y; };
+</script>
+<script>
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ahora = new Date();
 document.getElementById('mes-actual').textContent = meses[ahora.getMonth()] + ' ' + ahora.getFullYear();

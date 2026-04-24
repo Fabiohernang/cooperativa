@@ -140,6 +140,12 @@
 
 <script type="module" src="../js/nav.js"></script>
 <script>
+  // Funciones locales para no depender del timing de nav.js (module)
+  if (typeof hoy === 'undefined') window.hoy = () => new Date().toISOString().slice(0,10);
+  if (typeof fmt === 'undefined') window.fmt = n => n===undefined||n===null||n===''?'—':Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (typeof fmtFecha === 'undefined') window.fmtFecha = str => { if(!str)return'—'; const[y,m,d]=str.split('-'); return d+'/'+m+'/'+y; };
+</script>
+<script>
   let editandoId = null;
 
   function calcPreview() {
