@@ -17,8 +17,8 @@ const firebaseConfig = {
 
 // Mapa email interno → nombre de usuario visible
 const NOMBRE_USUARIO = {
-  "fabio@coop-transport.local": "Fabio",
-  "juan@coop-transport.local":  "Juan",
+  "fabio@cooptrans.local": "Fabio",
+  "juan@cooptrans.local":  "Juan",
 };
 
 const app  = initializeApp(firebaseConfig);
