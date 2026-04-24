@@ -141,8 +141,6 @@
 <script type="module" src="../js/nav.js"></script>
 <script>
   let editandoId = null;
-  document.getElementById('nav-fecha').textContent =
-    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
 
   function calcPreview() {
     const v = id => parseFloat(document.getElementById(id).value) || 0;

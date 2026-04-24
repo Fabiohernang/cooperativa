@@ -145,8 +145,6 @@
   let editandoId = null;
   const HOY = hoy();
 
-  document.getElementById('nav-fecha').textContent =
-    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
 
   function calcRestante() {
     const saldo = parseFloat(document.getElementById('f-saldo').value) || 0;

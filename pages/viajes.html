@@ -173,8 +173,6 @@
 <script>
   let editandoId = null;
 
-  document.getElementById('nav-fecha').textContent =
-    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
 
   function calcularPreview() {
     const tarifa = parseFloat(document.getElementById('f-tarifa').value) || 0;
