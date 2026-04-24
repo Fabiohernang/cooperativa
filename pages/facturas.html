@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facturas · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html" class="active"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user" id="nav-fecha">—</div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">🧾 Facturas a Clientes</div>
+      <div class="page-sub">Control de cobro: vencimientos, pagos y saldos.</div>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModal()">+ Nueva Factura</button>
+  </div>
+
+  <div class="kpi-grid" id="kpis" style="grid-template-columns:repeat(5,1fr)"></div>
+
+  <div class="filter-bar">
+    <input type="text" id="filtro-cliente" placeholder="🔍 Cliente..." oninput="renderTabla()" style="width:200px">
+    <input type="text" id="filtro-nro" placeholder="Nro. factura" oninput="renderTabla()" style="width:130px">
+    <select id="filtro-estado" onchange="renderTabla()" style="width:160px">
+      <option value="">Todos los estados</option>
+      <option value="pendiente">Pendientes</option>
+      <option value="vencida">Vencidas</option>
+      <option value="pagada">Pagadas</option>
+      <option value="anulada">Anuladas</option>
+    </select>
+    <div class="spacer"></div>
+    <span id="contador" style="font-size:12px;color:var(--gris4)"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nro.</th>
+          <th>Cliente</th>
+          <th>Fecha Emis.</th>
+          <th>Fecha Venc.</th>
+          <th class="text-right">Saldo</th>
+          <th class="text-right">Pago</th>
+          <th class="text-right">Retenciones</th>
+          <th class="text-right">Restante</th>
+          <th class="text-right" style="color:#dc2626">Vencido</th>
+          <th>Fecha Pago</th>
+          <th>Estado</th>
+          <th>Obs.</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body"></tbody>
+      <tfoot id="tabla-foot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-titulo">Nueva Factura</div>
+      <button class="btn-close" onclick="cerrarModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-error" class="alert danger mb-16" style="display:none"></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nro. Factura *</label>
+          <input type="text" id="f-nro" placeholder="ej: 29250">
+        </div>
+        <div class="form-group">
+          <label>Cliente *</label>
+          <input type="text" id="f-cliente">
+        </div>
+        <div class="form-group">
+          <label>Fecha Emisión *</label>
+          <input type="date" id="f-emis">
+        </div>
+        <div class="form-group">
+          <label>Fecha Vencimiento</label>
+          <input type="date" id="f-venc">
+        </div>
+        <div class="form-group">
+          <label>Saldo a Cobrar *</label>
+          <input type="number" id="f-saldo" step="0.01" oninput="calcRestante()">
+        </div>
+        <div class="form-group">
+          <label>Pago Recibido</label>
+          <input type="number" id="f-pago" step="0.01" value="0" oninput="calcRestante()">
+        </div>
+        <div class="form-group">
+          <label>Retenciones</label>
+          <input type="number" id="f-ret" step="0.01" value="0" oninput="calcRestante()">
+        </div>
+        <div class="form-group">
+          <label>Restante (auto)</label>
+          <input type="text" id="f-restante" class="computed" readonly>
+        </div>
+        <div class="form-group">
+          <label>Fecha de Pago</label>
+          <input type="date" id="f-fpago">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="f-pagada">
+            <option value="no">Pendiente</option>
+            <option value="si">Pagada ✅</option>
+            <option value="anul">Anulada</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Observaciones</label>
+          <input type="text" id="f-obs">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/db.js"></script>
+<script>
+  let editandoId = null;
+  const HOY = hoy();
+
+  document.getElementById('nav-fecha').textContent =
+    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+
+  function calcRestante() {
+    const saldo = parseFloat(document.getElementById('f-saldo').value) || 0;
+    const pago  = parseFloat(document.getElementById('f-pago').value)  || 0;
+    const ret   = parseFloat(document.getElementById('f-ret').value)   || 0;
+    document.getElementById('f-restante').value = '$' + fmt(saldo - pago - ret);
+  }
+
+  function estadoFila(f) {
+    const vencida = !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < HOY;
+    if (f.anulada)  return { label:'ANULADA',   cls:'gris' };
+    if (f.pagada)   return { label:'✅ PAGADA',  cls:'verde' };
+    if (vencida)    return { label:'⚠️ VENCIDA', cls:'rojo' };
+    return { label:'🔵 PENDIENTE', cls:'azul' };
+  }
+
+  function renderKPIs() {
+    const all = DB.Facturas.getAll();
+    const pend   = all.filter(f => !f.pagada && !f.anulada);
+    const venc   = all.filter(f => !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < HOY);
+    const totalPend = pend.reduce((a,f)=>a+(f.restante||0),0);
+    const totalVenc = venc.reduce((a,f)=>a+(f.restante||0),0);
+    const totalCob  = all.filter(f=>f.pagada).reduce((a,f)=>a+(f.pago||0),0);
+    document.getElementById('kpis').innerHTML = `
+      <div class="kpi azul"><div class="kpi-label">Total Facturas</div><div class="kpi-value">${all.length}</div></div>
+      <div class="kpi azul"><div class="kpi-label">Pendientes de Cobro</div><div class="kpi-value">$${fmt(totalPend)}</div><div class="kpi-sub">${pend.length} facturas</div></div>
+      <div class="kpi rojo"><div class="kpi-label">⚠️ Saldo Vencido</div><div class="kpi-value rojo">$${fmt(totalVenc)}</div><div class="kpi-sub">${venc.length} facturas</div></div>
+      <div class="kpi verde"><div class="kpi-label">Total Cobrado</div><div class="kpi-value">$${fmt(totalCob)}</div></div>
+      <div class="kpi naranja"><div class="kpi-label">Vencidas sin Cobrar</div><div class="kpi-value ${venc.length>0?'rojo':''}">${venc.length}</div></div>
+    `;
+  }
+
+  function renderTabla() {
+    const filtCli   = document.getElementById('filtro-cliente').value.toLowerCase();
+    const filtNro   = document.getElementById('filtro-nro').value.toLowerCase();
+    const filtEstado= document.getElementById('filtro-estado').value;
+
+    let datos = DB.Facturas.getAll();
+    if (filtCli)  datos = datos.filter(f => f.cliente.toLowerCase().includes(filtCli));
+    if (filtNro)  datos = datos.filter(f => String(f.nro).includes(filtNro));
+    if (filtEstado === 'pendiente') datos = datos.filter(f => !f.pagada && !f.anulada && !(f.fechaVenc && f.fechaVenc < HOY));
+    if (filtEstado === 'vencida')   datos = datos.filter(f => !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < HOY);
+    if (filtEstado === 'pagada')    datos = datos.filter(f => f.pagada);
+    if (filtEstado === 'anulada')   datos = datos.filter(f => f.anulada);
+
+    document.getElementById('contador').textContent = `${datos.length} factura${datos.length!==1?'s':''}`;
+
+    const totSaldo   = datos.reduce((a,f)=>a+(f.saldo||0),0);
+    const totPago    = datos.reduce((a,f)=>a+(f.pago||0),0);
+    const totRet     = datos.reduce((a,f)=>a+(f.retenciones||0),0);
+    const totRest    = datos.reduce((a,f)=>a+(f.restante||0),0);
+    const totVencido = datos.filter(f=>!f.pagada&&!f.anulada&&f.fechaVenc&&f.fechaVenc<HOY).reduce((a,f)=>a+(f.restante||0),0);
+
+    if (datos.length === 0) {
+      document.getElementById('tabla-body').innerHTML =
+        '<tr><td colspan="13"><div class="empty-state"><div class="icon">🧾</div><p>Sin facturas</p></div></td></tr>';
+      document.getElementById('tabla-foot').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('tabla-body').innerHTML = datos.map(f => {
+      const est = estadoFila(f);
+      const vencida = !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < HOY;
+      const vencidoAmt = vencida ? f.restante : 0;
+      const rowBg = f.pagada ? '#f0fdf4' : vencida ? '#fff1f2' : f.anulada ? '#f8fafc' : '';
+      return `<tr style="background:${rowBg}">
+        <td class="mono fw-600">${f.nro}</td>
+        <td class="fw-600">${f.cliente}</td>
+        <td>${fmtFecha(f.fechaEmis)}</td>
+        <td style="color:${vencida?'var(--rojo2)':'inherit'}">${fmtFecha(f.fechaVenc)}</td>
+        <td class="mono text-right">$${fmt(f.saldo)}</td>
+        <td class="mono text-right" style="color:var(--verde2)">$${fmt(f.pago)}</td>
+        <td class="mono text-right" style="color:var(--gris4)">$${fmt(f.retenciones)}</td>
+        <td class="mono text-right fw-600">$${fmt(f.restante)}</td>
+        <td class="mono text-right" style="color:var(--rojo2);font-weight:600">${vencidoAmt>0?'$'+fmt(vencidoAmt):'—'}</td>
+        <td>${fmtFecha(f.fechaPago)}</td>
+        <td><span class="pill ${est.cls}">${est.label}</span></td>
+        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:var(--gris4)">${f.observaciones||'—'}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="abrirModal('${f.id}')">✏️</button>
+          <button class="btn btn-ghost btn-sm" onclick="eliminar('${f.id}')" style="color:var(--rojo2)">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('tabla-foot').innerHTML = `
+      <tr>
+        <td colspan="4" class="fw-600">TOTALES (${datos.length})</td>
+        <td class="text-right">$${fmt(totSaldo)}</td>
+        <td class="text-right" style="color:var(--verde2)">$${fmt(totPago)}</td>
+        <td class="text-right">$${fmt(totRet)}</td>
+        <td class="text-right fw-600">$${fmt(totRest)}</td>
+        <td class="text-right" style="color:var(--rojo2);font-weight:700">$${fmt(totVencido)}</td>
+        <td colspan="4"></td>
+      </tr>
+    `;
+  }
+
+  function abrirModal(id = null) {
+    editandoId = id;
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('modal-titulo').textContent = id ? 'Editar Factura' : 'Nueva Factura';
+    if (id) {
+      const f = DB.Facturas.getAll().find(x => x.id === id);
+      document.getElementById('f-nro').value     = f.nro;
+      document.getElementById('f-cliente').value = f.cliente;
+      document.getElementById('f-emis').value    = f.fechaEmis;
+      document.getElementById('f-venc').value    = f.fechaVenc;
+      document.getElementById('f-saldo').value   = f.saldo;
+      document.getElementById('f-pago').value    = f.pago;
+      document.getElementById('f-ret').value     = f.retenciones;
+      document.getElementById('f-fpago').value   = f.fechaPago;
+      document.getElementById('f-obs').value     = f.observaciones;
+      document.getElementById('f-pagada').value  = f.anulada ? 'anul' : f.pagada ? 'si' : 'no';
+    } else {
+      ['f-nro','f-cliente','f-saldo','f-obs'].forEach(x => document.getElementById(x).value='');
+      document.getElementById('f-emis').value  = HOY;
+      document.getElementById('f-pago').value  = '0';
+      document.getElementById('f-ret').value   = '0';
+      document.getElementById('f-venc').value  = '';
+      document.getElementById('f-fpago').value = '';
+      document.getElementById('f-pagada').value= 'no';
+    }
+    calcRestante();
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    editandoId = null;
+  }
+
+  function guardar() {
+    const estado = document.getElementById('f-pagada').value;
+    const data = {
+      nro: document.getElementById('f-nro').value.trim(),
+      cliente: document.getElementById('f-cliente').value.trim(),
+      fechaEmis: document.getElementById('f-emis').value,
+      fechaVenc: document.getElementById('f-venc').value,
+      saldo: document.getElementById('f-saldo').value,
+      pago: document.getElementById('f-pago').value,
+      retenciones: document.getElementById('f-ret').value,
+      fechaPago: document.getElementById('f-fpago').value,
+      observaciones: document.getElementById('f-obs').value.trim(),
+      pagada: estado === 'si',
+      anulada: estado === 'anul',
+    };
+    if (!data.nro || !data.cliente || !data.fechaEmis || !data.saldo) {
+      const el = document.getElementById('modal-error');
+      el.textContent = '⚠️ Completá Nro., Cliente, Fecha Emisión y Saldo.';
+      el.style.display = 'flex'; return;
+    }
+    try {
+      if (editandoId) DB.Facturas.update(editandoId, data);
+      else DB.Facturas.add(data);
+      cerrarModal(); renderTabla(); renderKPIs();
+    } catch(e) {
+      const el = document.getElementById('modal-error');
+      el.textContent = '⚠️ ' + e.message; el.style.display = 'flex';
+    }
+  }
+
+  function eliminar(id) {
+    if (!confirm('¿Eliminar esta factura?')) return;
+    DB.Facturas.delete(id); renderTabla(); renderKPIs();
+  }
+
+  renderKPIs(); renderTabla();
+</script>
+</body>
+</html>

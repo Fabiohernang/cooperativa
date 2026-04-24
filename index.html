@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · Cooperativa</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+    .venc-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--gris6);
+      margin-bottom: 8px;
+      background: var(--blanco);
+    }
+    .venc-item:hover { background: var(--gris8); }
+    .venc-cliente { font-weight: 600; font-size: 13px; }
+    .venc-dias { font-size: 11px; color: var(--rojo2); font-family: var(--mono); }
+    .venc-monto { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--rojo2); }
+    .resumen-mes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .mes-item {
+      text-align: center;
+      padding: 14px;
+      background: var(--gris8);
+      border-radius: var(--radius);
+      border: 1px solid var(--gris6);
+    }
+    .mes-item .valor {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .mes-item .etiq {
+      font-size: 11px;
+      color: var(--gris4);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-top: 4px;
+    }
+    .actividad-item {
+      padding: 8px 12px;
+      border-left: 3px solid var(--gris6);
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .actividad-item.viaje  { border-color: var(--verde2); }
+    .actividad-item.factura { border-color: var(--azul2); }
+    .actividad-item.pago    { border-color: var(--naranja2); }
+    .actividad-fecha { color: var(--gris4); font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="index.html" class="active"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="pages/viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="pages/facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pages/pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="pages/conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="pages/analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user" id="nav-fecha">—</div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">📊 Dashboard <span class="badge" id="mes-actual">—</span></div>
+      <div class="page-sub">Resumen general del sistema</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpis"></div>
+
+  <!-- Alerta vencidos -->
+  <div id="alerta-vencidos"></div>
+
+  <div class="dash-grid">
+    <!-- Facturas vencidas -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚠️ Facturas Vencidas sin Cobrar</div>
+        <a href="pages/facturas.html" class="btn btn-ghost btn-sm">Ver todas →</a>
+      </div>
+      <div class="card-body" id="lista-vencidas">
+        <div class="empty-state"><div class="icon">✅</div><p>Sin facturas vencidas</p></div>
+      </div>
+    </div>
+
+    <!-- Resumen del mes -->
+    <div>
+      <div class="card mb-16">
+        <div class="card-header">
+          <div class="card-title">📅 Este mes</div>
+        </div>
+        <div class="card-body">
+          <div class="resumen-mes" id="resumen-mes"></div>
+        </div>
+      </div>
+
+      <!-- Actividad reciente -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🕐 Actividad reciente</div>
+        </div>
+        <div class="card-body" id="actividad-reciente">
+          <div class="empty-state"><div class="icon">📭</div><p>Sin registros aún</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script>
+  // Fecha nav
+  const ahora = new Date();
+  document.getElementById('nav-fecha').textContent = ahora.toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('mes-actual').textContent = meses[ahora.getMonth()] + ' ' + ahora.getFullYear();
+
+  function render() {
+    const viajes   = DB.Viajes.getAll();
+    const facturas = DB.Facturas.getAll();
+    const pagos    = DB.Pagos.getAll();
+
+    const hoy_str = hoy();
+    const mesN = ahora.getMonth() + 1;
+    const anioN = ahora.getFullYear();
+
+    // ── KPIs ──────────────────────────────────────────
+    const totalPendiente = facturas.filter(f => !f.pagada && !f.anulada)
+      .reduce((a, f) => a + (f.restante || 0), 0);
+    const totalVencido = facturas.filter(f => f.vencida || (!f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < hoy_str))
+      .reduce((a, f) => a + (f.restante || 0), 0);
+    const totalPagado = pagos.reduce((a, p) => a + (p.impPagado || 0), 0);
+    const viajesMes = viajes.filter(v => {
+      if (!v.fecha) return false;
+      const d = new Date(v.fecha);
+      return d.getMonth()+1 === mesN && d.getFullYear() === anioN;
+    });
+    const factMes = viajesMes.reduce((a, v) => a + (v.importeIVA || 0), 0);
+
+    document.getElementById('kpis').innerHTML = `
+      <div class="kpi rojo">
+        <div class="kpi-label">Saldo Vencido</div>
+        <div class="kpi-value rojo">$${fmt(totalVencido)}</div>
+        <div class="kpi-sub">${facturas.filter(f => f.vencida || (!f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < hoy_str)).length} facturas</div>
+        <div class="kpi-icon">⚠️</div>
+      </div>
+      <div class="kpi azul">
+        <div class="kpi-label">Total Pendiente Cobro</div>
+        <div class="kpi-value">$${fmt(totalPendiente)}</div>
+        <div class="kpi-sub">${facturas.filter(f=>!f.pagada&&!f.anulada).length} facturas activas</div>
+        <div class="kpi-icon">🧾</div>
+      </div>
+      <div class="kpi naranja">
+        <div class="kpi-label">Pagado a Fleteros</div>
+        <div class="kpi-value">$${fmt(totalPagado)}</div>
+        <div class="kpi-sub">${pagos.length} órdenes de pago</div>
+        <div class="kpi-icon">💸</div>
+      </div>
+      <div class="kpi verde">
+        <div class="kpi-label">Facturado Este Mes</div>
+        <div class="kpi-value">$${fmt(factMes)}</div>
+        <div class="kpi-sub">${viajesMes.length} viajes</div>
+        <div class="kpi-icon">📋</div>
+      </div>
+    `;
+
+    // ── Alerta vencidos ────────────────────────────────
+    const cantVenc = facturas.filter(f =>
+      !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < hoy_str
+    ).length;
+    if (cantVenc > 0) {
+      document.getElementById('alerta-vencidos').innerHTML =
+        `<div class="alert danger mb-24">⚠️ Tenés <strong>${cantVenc} factura${cantVenc>1?'s':''} vencida${cantVenc>1?'s':''}</strong> sin cobrar. Revisalas antes de emitir nuevas liquidaciones.</div>`;
+    }
+
+    // ── Lista vencidas ─────────────────────────────────
+    const vencidas = facturas
+      .filter(f => !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < hoy_str)
+      .sort((a, b) => a.fechaVenc < b.fechaVenc ? -1 : 1);
+
+    if (vencidas.length === 0) {
+      document.getElementById('lista-vencidas').innerHTML =
+        '<div class="empty-state"><div class="icon">✅</div><p>Sin facturas vencidas</p></div>';
+    } else {
+      document.getElementById('lista-vencidas').innerHTML = vencidas.slice(0, 8).map(f => {
+        const dias = Math.floor((new Date(hoy_str) - new Date(f.fechaVenc)) / 86400000);
+        return `<div class="venc-item">
+          <div>
+            <div class="venc-cliente">${f.cliente} <span style="color:var(--gris4);font-weight:400;">Fact. ${f.nro}</span></div>
+            <div class="venc-dias">${dias} día${dias!==1?'s':''} vencida · Venc: ${fmtFecha(f.fechaVenc)}</div>
+          </div>
+          <div class="venc-monto">$${fmt(f.restante)}</div>
+        </div>`;
+      }).join('') + (vencidas.length > 8 ? `<div style="text-align:center;padding:8px;font-size:12px;color:var(--gris4)">+${vencidas.length-8} más</div>` : '');
+    }
+
+    // ── Resumen del mes ────────────────────────────────
+    const cobradoMes = facturas.filter(f => f.fechaPago && f.fechaPago.startsWith(`${anioN}-${String(mesN).padStart(2,'0')}`))
+      .reduce((a,f) => a+(f.pago||0), 0);
+    const pagadoMes = pagos.filter(p => p.fechaOP && p.fechaOP.startsWith(`${anioN}-${String(mesN).padStart(2,'0')}`))
+      .reduce((a,p) => a+(p.impPagado||0), 0);
+    const comisionMes = viajesMes.reduce((a,v) => a+(v.comision||0), 0);
+    const matiasMes = viajesMes.reduce((a,v) => a+(v.comisionMat||0), 0);
+
+    document.getElementById('resumen-mes').innerHTML = `
+      <div class="mes-item"><div class="valor">$${fmt(factMes)}</div><div class="etiq">Facturado</div></div>
+      <div class="mes-item"><div class="valor" style="color:var(--verde2)">$${fmt(cobradoMes)}</div><div class="etiq">Cobrado</div></div>
+      <div class="mes-item"><div class="valor" style="color:var(--naranja2)">$${fmt(pagadoMes)}</div><div class="etiq">Pagado Flet.</div></div>
+      <div class="mes-item"><div class="valor">$${fmt(comisionMes)}</div><div class="etiq">Comisión</div></div>
+    `;
+
+    // ── Actividad reciente ─────────────────────────────
+    const todos = [
+      ...viajes.map(v => ({ tipo: 'viaje', fecha: v.creado, txt: `Viaje cargado · ${v.fletero} · Fact. ${v.factura||'sin factura'}` })),
+      ...facturas.map(f => ({ tipo: 'factura', fecha: f.creado, txt: `Factura ${f.nro} · ${f.cliente} · $${fmt(f.saldo)}` })),
+      ...pagos.map(p => ({ tipo: 'pago', fecha: p.creado, txt: `Pago OP${p.nroOrden} · ${p.fletero} · $${fmt(p.impPagado)}` })),
+    ].sort((a, b) => b.fecha > a.fecha ? 1 : -1).slice(0, 6);
+
+    if (todos.length === 0) {
+      document.getElementById('actividad-reciente').innerHTML =
+        '<div class="empty-state"><div class="icon">📭</div><p>Sin registros aún</p></div>';
+    } else {
+      document.getElementById('actividad-reciente').innerHTML = todos.map(t => {
+        const d = new Date(t.fecha);
+        const fechaStr = d.toLocaleDateString('es-AR', {day:'2-digit', month:'short'}) + ' ' + d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+        return `<div class="actividad-item ${t.tipo}">
+          <div>${t.txt}</div>
+          <div class="actividad-fecha">${fechaStr}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  render();
+</script>
+</body>
+</html>
