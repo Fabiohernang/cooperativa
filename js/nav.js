@@ -93,7 +93,7 @@ window.DB = {
         const ex = await getDocs(query(collection(db,'viajes'), where('ctg','==',String(data.ctg))));
         if (!ex.empty) throw new Error(`CTG ${data.ctg} ya existe en otro viaje.`);
       }
-      const v = { fecha:data.fecha, cliente:data.cliente, factura:data.factura||'',
+      const v = { id_viaje: Date.now(), fecha:data.fecha, cliente:data.cliente, factura:data.factura||'',
         fletero:data.fletero, socio:data.socio==='SI'?'SI':'NO', ctg:data.ctg||'',
         origen:data.origen||'', destino:data.destino||'', km:parseFloat(data.km)||0,
         tarifa:parseFloat(data.tarifa)||0, kg:parseFloat(data.kg)||0, liquidado:false,

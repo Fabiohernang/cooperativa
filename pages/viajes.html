@@ -320,7 +320,7 @@
 
     document.getElementById('tabla-body').innerHTML = datos.map((v, i) => `
       <tr style="${v.liquidado ? 'background:#f0fdf4' : ''}">
-        <td class="mono color-gris">${v.id_viaje}</td>
+        <td class="mono color-gris">${i + 1}</td>
         <td>${fmtFecha(v.fecha)}</td>
         <td class="fw-600">${v.cliente}</td>
         <td class="mono">${v.factura || '<span class="color-gris">—</span>'}</td>
