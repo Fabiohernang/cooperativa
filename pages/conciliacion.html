@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conciliación · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    .concil-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    @media(max-width:800px){ .concil-panel { grid-template-columns:1fr; } }
+
+    .side-card {
+      background: var(--blanco);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .side-header {
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--blanco);
+    }
+    .side-header.izq { background: var(--azul2); }
+    .side-header.der { background: var(--naranja2); }
+    .side-body { padding: 14px; }
+
+    .ctg-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px 80px;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      border: 1px solid var(--gris6);
+      font-size: 13px;
+      background: var(--blanco);
+    }
+    .ctg-row-header {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--gris4);
+      letter-spacing: .05em;
+      padding: 4px 10px;
+      display: grid;
+      grid-template-columns: 1fr 110px 110px 80px;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .ctg-row.ok    { border-color: #86efac; background: #f0fdf4; }
+    .ctg-row.diff  { border-color: #fca5a5; background: #fff1f2; }
+    .ctg-row.solo  { border-color: #fed7aa; background: #fff7ed; }
+
+    .result-panel {
+      background: var(--gris2);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .result-item { text-align: center; }
+    .result-val {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--blanco);
+    }
+    .result-val.ok  { color: #4ade80; }
+    .result-val.err { color: #f87171; }
+    .result-label {
+      font-size: 11px;
+      color: var(--gris5);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-top: 4px;
+    }
+
+    .add-ctg-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px auto;
+      gap: 8px;
+      align-items: end;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--gris6);
+    }
+    .add-ctg-row input { font-size: 13px; padding: 7px 8px; }
+    .add-ctg-row label { font-size: 10px; }
+
+    .instruccion {
+      background: #fef3c7;
+      border-left: 3px solid var(--naranja2);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #78350f;
+    }
+    .instruccion strong { display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html" class="active"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user" id="nav-fecha">—</div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">✅ Conciliación</div>
+      <div class="page-sub">Comparás los viajes que tenés vos vs. lo que liquidó el sistema. CTG por CTG.</div>
+    </div>
+  </div>
+
+  <div class="instruccion">
+    <strong>¿Cómo funciona?</strong>
+    1. Elegís una factura → el sistema carga automáticamente los viajes que tenés registrados.<br>
+    2. Cargás los datos de la liquidación del sistema (CTG + KG + importe).<br>
+    3. El sistema compara ambos lados. Si coinciden → ✅ OK. Si hay diferencia → ⚠️ se marca en rojo.<br>
+    4. Cuando todo está OK → hacé clic en <strong>"Marcar liquidados"</strong> para cerrar.
+  </div>
+
+  <!-- Selector de factura -->
+  <div class="card mb-24">
+    <div class="card-header">
+      <div class="card-title">🔎 Seleccioná la factura a conciliar</div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-group" style="min-width:180px">
+          <label>Nro. Factura</label>
+          <input type="text" id="input-factura" placeholder="ej: 29250" oninput="buscarFactura()">
+        </div>
+        <div id="info-factura" style="font-size:13px;color:var(--gris4);padding-bottom:8px">
+          Ingresá un número de factura para empezar
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel principal (oculto hasta que se elige factura) -->
+  <div id="panel-concil" style="display:none">
+
+    <!-- Resultado resumen -->
+    <div class="result-panel" id="result-panel">
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="result-val" id="r-ok">—</div>
+          <div class="result-label">CTGs coinciden</div>
+        </div>
+        <div class="result-item">
+          <div class="result-val err" id="r-diff">—</div>
+          <div class="result-label">Con diferencias</div>
+        </div>
+        <div class="result-item">
+          <div class="result-val" style="color:var(--gris5)" id="r-solo">—</div>
+          <div class="result-label">Solo en un lado</div>
+        </div>
+        <div class="result-item" style="display:flex;flex-direction:column;justify-content:center;gap:8px">
+          <button class="btn btn-success" onclick="marcarLiquidados()" id="btn-liquidar" disabled>
+            ✅ Marcar todos liquidados
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lado a lado -->
+    <div class="concil-panel">
+      <!-- Tu lado (Excel) -->
+      <div class="side-card">
+        <div class="side-header izq">📋 Tus viajes registrados (sistema)</div>
+        <div class="side-body">
+          <div class="ctg-row-header">
+            <span>CTG</span><span style="text-align:right">KG</span><span style="text-align:right">IMP+IVA</span><span></span>
+          </div>
+          <div id="lista-propios"></div>
+        </div>
+      </div>
+
+      <!-- Liquidación del sistema -->
+      <div class="side-card">
+        <div class="side-header der">📄 Liquidación del sistema</div>
+        <div class="side-body">
+          <div class="ctg-row-header">
+            <span>CTG</span><span style="text-align:right">KG</span><span style="text-align:right">Importe</span><span></span>
+          </div>
+          <div id="lista-sistema"></div>
+
+          <div class="add-ctg-row">
+            <div class="form-group">
+              <label>CTG</label>
+              <input type="text" id="new-ctg" placeholder="Número CTG">
+            </div>
+            <div class="form-group">
+              <label>KG</label>
+              <input type="number" id="new-kg" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Importe</label>
+              <input type="number" id="new-imp" placeholder="0.00" step="0.01">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="agregarLineaSistema()" style="margin-bottom:1px">+ Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de diferencias -->
+    <div class="card" id="card-diffs" style="display:none">
+      <div class="card-header">
+        <div class="card-title" style="color:var(--rojo2)">⚠️ Diferencias detectadas</div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>CTG</th>
+                <th class="text-right">KG Tuyo</th>
+                <th class="text-right">KG Sistema</th>
+                <th class="text-right">Dif. KG</th>
+                <th class="text-right">Imp. Tuyo</th>
+                <th class="text-right">Imp. Sistema</th>
+                <th class="text-right">Dif. Imp.</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-diffs"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/db.js"></script>
+<script>
+  let facturaActual = null;
+  let viajesPropios = [];
+  let lineasSistema = [];
+
+  document.getElementById('nav-fecha').textContent =
+    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+
+  function buscarFactura() {
+    const nro = document.getElementById('input-factura').value.trim();
+    if (!nro) {
+      document.getElementById('info-factura').textContent = 'Ingresá un número de factura para empezar';
+      document.getElementById('panel-concil').style.display = 'none';
+      return;
+    }
+    const viajes = DB.Viajes.getByFactura(nro);
+    if (viajes.length === 0) {
+      document.getElementById('info-factura').innerHTML =
+        `<span style="color:var(--rojo2)">⚠️ No hay viajes cargados para la factura "${nro}"</span>`;
+      document.getElementById('panel-concil').style.display = 'none';
+      return;
+    }
+    facturaActual = nro;
+    viajesPropios = viajes;
+    lineasSistema = viajes.map(v => ({ ctg: v.ctg, kg: v.kg, imp: v.importeIVA }));
+
+    const totalKG  = viajes.reduce((a,v)=>a+(v.kg||0),0);
+    const totalIVA = viajes.reduce((a,v)=>a+(v.importeIVA||0),0);
+    document.getElementById('info-factura').innerHTML =
+      `<span style="color:var(--verde2);font-weight:600">✅ ${viajes.length} viaje${viajes.length!==1?'s':''} encontrados</span>
+       <span style="margin-left:12px;color:var(--gris4)">KG: <strong>${fmt(totalKG)}</strong> · Imp+IVA: <strong>$${fmt(totalIVA)}</strong></span>`;
+
+    document.getElementById('panel-concil').style.display = 'block';
+    renderConcil();
+  }
+
+  function renderListaPropios() {
+    if (viajesPropios.length === 0) {
+      document.getElementById('lista-propios').innerHTML =
+        '<div class="empty-state"><p>Sin viajes registrados</p></div>';
+      return;
+    }
+    document.getElementById('lista-propios').innerHTML = viajesPropios.map(v => {
+      const enSistema = lineasSistema.find(l => String(l.ctg) === String(v.ctg));
+      let cls = 'solo';
+      if (enSistema) {
+        const kgOk  = Math.abs((enSistema.kg||0) - (v.kg||0)) < 0.01;
+        const impOk = Math.abs((enSistema.imp||0) - (v.importeIVA||0)) < 1;
+        cls = (kgOk && impOk) ? 'ok' : 'diff';
+      }
+      return `<div class="ctg-row ${cls}">
+        <div class="mono" style="font-size:12px">${v.ctg || '<em style="color:var(--gris4)">sin CTG</em>'}</div>
+        <div class="mono text-right">${fmt(v.kg)}</div>
+        <div class="mono text-right">$${fmt(v.importeIVA)}</div>
+        <div class="text-center">
+          ${cls==='ok'?'<span class="pill verde">✓</span>':cls==='diff'?'<span class="pill rojo">≠</span>':'<span class="pill amarillo">solo</span>'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderListaSistema() {
+    document.getElementById('lista-sistema').innerHTML = lineasSistema.map((l, i) => {
+      const enPropios = viajesPropios.find(v => String(v.ctg) === String(l.ctg));
+      let cls = 'solo';
+      if (enPropios) {
+        const kgOk  = Math.abs((l.kg||0) - (enPropios.kg||0)) < 0.01;
+        const impOk = Math.abs((l.imp||0) - (enPropios.importeIVA||0)) < 1;
+        cls = (kgOk && impOk) ? 'ok' : 'diff';
+      }
+      return `<div class="ctg-row ${cls}">
+        <div class="mono" style="font-size:12px">${l.ctg || '—'}</div>
+        <div class="mono text-right">${fmt(l.kg)}</div>
+        <div class="mono text-right">$${fmt(l.imp)}</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          ${cls==='ok'?'<span class="pill verde">✓</span>':cls==='diff'?'<span class="pill rojo">≠</span>':'<span class="pill amarillo">solo</span>'}
+          <button onclick="quitarLineaSistema(${i})" style="background:none;border:none;cursor:pointer;color:var(--gris4);font-size:14px;padding:0 2px">×</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderResumen() {
+    let ok=0, diff=0, solo=0;
+    const diffs = [];
+
+    // CTGs de propios
+    viajesPropios.forEach(v => {
+      const l = lineasSistema.find(x => String(x.ctg) === String(v.ctg));
+      if (!l) { solo++; diffs.push({ctg:v.ctg, kgP:v.kg, kgS:null, impP:v.importeIVA, impS:null, tipo:'solo_propio'}); return; }
+      const kgOk  = Math.abs((l.kg||0)-(v.kg||0)) < 0.01;
+      const impOk = Math.abs((l.imp||0)-(v.importeIVA||0)) < 1;
+      if (kgOk && impOk) { ok++; }
+      else { diff++; diffs.push({ctg:v.ctg, kgP:v.kg, kgS:l.kg, impP:v.importeIVA, impS:l.imp, tipo:'diff'}); }
+    });
+    // CTGs solo en sistema
+    lineasSistema.forEach(l => {
+      const found = viajesPropios.find(v => String(v.ctg) === String(l.ctg));
+      if (!found) { solo++; diffs.push({ctg:l.ctg, kgP:null, kgS:l.kg, impP:null, impS:l.imp, tipo:'solo_sistema'}); }
+    });
+
+    document.getElementById('r-ok').textContent   = ok;
+    document.getElementById('r-diff').textContent  = diff;
+    document.getElementById('r-solo').textContent  = solo;
+    document.getElementById('r-ok').className = `result-val ${ok>0&&diff===0&&solo===0?'ok':''}`;
+
+    // Tabla diffs
+    const card = document.getElementById('card-diffs');
+    if (diffs.length > 0) {
+      card.style.display = 'block';
+      document.getElementById('tabla-diffs').innerHTML = diffs.map(d => {
+        const difKG  = d.kgP!==null && d.kgS!==null ? d.kgS-d.kgP : null;
+        const difImp = d.impP!==null && d.impS!==null ? d.impS-d.impP : null;
+        return `<tr style="background:${d.tipo==='diff'?'#fff1f2':d.tipo==='solo_sistema'?'#fff7ed':'#f0f9ff'}">
+          <td class="mono fw-600">${d.ctg||'—'}</td>
+          <td class="mono text-right">${d.kgP!==null?fmt(d.kgP):'—'}</td>
+          <td class="mono text-right">${d.kgS!==null?fmt(d.kgS):'—'}</td>
+          <td class="mono text-right ${difKG?Math.abs(difKG)<0.01?'color-verde':'color-rojo':''}">
+            ${difKG!==null?(difKG>0?'+':'')+fmt(difKG):'—'}
+          </td>
+          <td class="mono text-right">${d.impP!==null?'$'+fmt(d.impP):'—'}</td>
+          <td class="mono text-right">${d.impS!==null?'$'+fmt(d.impS):'—'}</td>
+          <td class="mono text-right ${difImp?Math.abs(difImp)<1?'color-verde':'color-rojo':''}">
+            ${difImp!==null?(difImp>0?'+$':'$')+fmt(difImp):'—'}
+          </td>
+          <td><span class="pill ${d.tipo==='diff'?'rojo':d.tipo==='solo_sistema'?'amarillo':'azul'}">
+            ${d.tipo==='diff'?'Diferencia':d.tipo==='solo_sistema'?'Solo sistema':'Solo en tuyo'}
+          </span></td>
+        </tr>`;
+      }).join('');
+    } else {
+      card.style.display = 'none';
+    }
+
+    // Habilitar botón liquidar solo si todo OK
+    document.getElementById('btn-liquidar').disabled = !(diff===0 && solo===0 && ok>0);
+  }
+
+  function renderConcil() {
+    renderListaPropios();
+    renderListaSistema();
+    renderResumen();
+  }
+
+  function agregarLineaSistema() {
+    const ctg = document.getElementById('new-ctg').value.trim();
+    const kg  = parseFloat(document.getElementById('new-kg').value) || 0;
+    const imp = parseFloat(document.getElementById('new-imp').value) || 0;
+    if (!ctg) { alert('Ingresá el CTG'); return; }
+    lineasSistema.push({ ctg, kg, imp });
+    document.getElementById('new-ctg').value = '';
+    document.getElementById('new-kg').value  = '';
+    document.getElementById('new-imp').value = '';
+    renderConcil();
+  }
+
+  function quitarLineaSistema(i) {
+    lineasSistema.splice(i, 1);
+    renderConcil();
+  }
+
+  function marcarLiquidados() {
+    if (!confirm(`¿Marcar los ${viajesPropios.length} viajes de la factura ${facturaActual} como liquidados?`)) return;
+    viajesPropios.forEach(v => DB.Viajes.marcarLiquidado(v.id, true));
+    alert(`✅ ${viajesPropios.length} viajes marcados como liquidados.`);
+    buscarFactura();
+  }
+</script>
+</body>
+</html>
