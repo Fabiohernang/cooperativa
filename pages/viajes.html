@@ -17,7 +17,7 @@
   <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
   <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
   <div class="nav-spacer"></div>
-  <div class="nav-user" id="nav-fecha">—</div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
 </nav>
 
 <div class="page">
@@ -166,7 +166,7 @@
   </div>
 </div>
 
-<script src="../js/db.js"></script>
+<script type="module" src="../js/nav.js"></script>
 <script>
   let editandoId = null;
 
@@ -224,7 +224,7 @@
     editandoId = null;
   }
 
-  function guardar() {
+  async function guardar() {
     const data = {
       fecha: document.getElementById('f-fecha').value,
       cliente: document.getElementById('f-cliente').value.trim(),
@@ -244,8 +244,8 @@
       return;
     }
     try {
-      if (editandoId) DB.Viajes.update(editandoId, data);
-      else DB.Viajes.add(data);
+      if (editandoId) await DB.Viajes.update(editandoId, data);
+      else await DB.Viajes.add(data);
       cerrarModal();
       renderTabla();
       renderKPIs();
@@ -258,20 +258,20 @@
     el.style.display = 'flex';
   }
 
-  function toggleLiquidado(id, val) {
-    DB.Viajes.marcarLiquidado(id, val);
+  async function toggleLiquidado(id, val) {
+    await DB.Viajes.marcarLiquidado(id, val);
     renderTabla();
   }
 
-  function eliminar(id) {
+  async function eliminar(id) {
     if (!confirm('¿Eliminar este viaje?')) return;
-    DB.Viajes.delete(id);
+    await DB.Viajes.delete(id);
     renderTabla();
     renderKPIs();
   }
 
-  function renderKPIs() {
-    const todos = DB.Viajes.getAll();
+  async function renderKPIs() {
+    const todos = await DB.Viajes.getAll();
     const totIVA = todos.reduce((a,v) => a + (v.importeIVA||0), 0);
     const totCom = todos.reduce((a,v) => a + (v.comision||0), 0);
     const totMat = todos.reduce((a,v) => a + (v.comisionMat||0), 0);
@@ -284,13 +284,13 @@
     `;
   }
 
-  function renderTabla() {
+  async function renderTabla() {
     const filtFlet = document.getElementById('filtro-fletero').value.toLowerCase();
     const filtCli  = document.getElementById('filtro-cliente').value.toLowerCase();
     const filtFact = document.getElementById('filtro-factura').value.toLowerCase();
     const filtLiq  = document.getElementById('filtro-liquidado').value;
 
-    let datos = DB.Viajes.getAll();
+    let datos = await DB.Viajes.getAll();
     if (filtFlet) datos = datos.filter(v => v.fletero.toLowerCase().includes(filtFlet));
     if (filtCli)  datos = datos.filter(v => v.cliente.toLowerCase().includes(filtCli));
     if (filtFact) datos = datos.filter(v => String(v.factura).toLowerCase().includes(filtFact));
@@ -348,8 +348,10 @@
     `;
   }
 
-  renderKPIs();
-  renderTabla();
+  window.addEventListener('auth-ready', () => {
+    renderKPIs();
+    renderTabla();
+  });
 </script>
 </body>
 </html>

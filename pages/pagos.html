@@ -17,7 +17,7 @@
   <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
   <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
   <div class="nav-spacer"></div>
-  <div class="nav-user" id="nav-fecha">—</div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
 </nav>
 
 <div class="page">
@@ -135,7 +135,7 @@
   </div>
 </div>
 
-<script src="../js/db.js"></script>
+<script type="module" src="../js/nav.js"></script>
 <script>
   let editandoId = null;
   document.getElementById('nav-fecha').textContent =
@@ -149,8 +149,8 @@
     el.style.color = apagar < 0 ? '#dc2626' : 'var(--acento)';
   }
 
-  function renderKPIs() {
-    const all = DB.Pagos.getAll();
+  async function renderKPIs() {
+    const all = await DB.Pagos.getAll();
     const totFact  = all.reduce((a,p)=>a+(p.impFactura||0),0);
     const totPag   = all.reduce((a,p)=>a+(p.impPagado||0),0);
     const totCom   = all.reduce((a,p)=>a+(p.comision||0),0);
@@ -163,11 +163,11 @@
     `;
   }
 
-  function renderTabla() {
+  async function renderTabla() {
     const filtFlet = document.getElementById('filtro-fletero').value.toLowerCase();
     const filtFact = document.getElementById('filtro-factura').value.toLowerCase();
     const filtMed  = document.getElementById('filtro-medio').value;
-    let datos = DB.Pagos.getAll();
+    let datos = await DB.Pagos.getAll();
     if (filtFlet) datos = datos.filter(p=>p.fletero.toLowerCase().includes(filtFlet));
     if (filtFact) datos = datos.filter(p=>String(p.factura).toLowerCase().includes(filtFact));
     if (filtMed)  datos = datos.filter(p=>(p.medioPago||'').toUpperCase().includes(filtMed));
@@ -262,7 +262,7 @@
     document.getElementById('modal-overlay').classList.remove('open'); editandoId=null;
   }
 
-  function guardar() {
+  async function guardar() {
     const g = id => document.getElementById(id).value;
     const data = {
       nroOrden: g('f-nroop'), fechaOP: g('f-fechaop'), fletero: g('f-fletero'),
@@ -279,8 +279,8 @@
       el.style.display='flex'; return;
     }
     try {
-      if (editandoId) DB.Pagos.update(editandoId, data);
-      else DB.Pagos.add(data);
+      if (editandoId) await DB.Pagos.update(editandoId, data);
+      else await DB.Pagos.add(data);
       cerrarModal(); renderTabla(); renderKPIs();
     } catch(e) {
       const el=document.getElementById('modal-error');
@@ -288,12 +288,12 @@
     }
   }
 
-  function eliminar(id) {
+  async function eliminar(id) {
     if (!confirm('¿Eliminar esta orden?')) return;
-    DB.Pagos.delete(id); renderTabla(); renderKPIs();
+    await DB.Pagos.delete(id); renderTabla(); renderKPIs();
   }
 
-  renderKPIs(); renderTabla();
+  window.addEventListener('auth-ready', () => { renderKPIs(); renderTabla(); });
 </script>
 </body>
 </html>

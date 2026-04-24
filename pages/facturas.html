@@ -17,7 +17,7 @@
   <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
   <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
   <div class="nav-spacer"></div>
-  <div class="nav-user" id="nav-fecha">—</div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
 </nav>
 
 <div class="page">
@@ -137,7 +137,7 @@
   </div>
 </div>
 
-<script src="../js/db.js"></script>
+<script type="module" src="../js/nav.js"></script>
 <script>
   let editandoId = null;
   const HOY = hoy();
@@ -160,8 +160,8 @@
     return { label:'🔵 PENDIENTE', cls:'azul' };
   }
 
-  function renderKPIs() {
-    const all = DB.Facturas.getAll();
+  async function renderKPIs() {
+    const all = await DB.Facturas.getAll();
     const pend   = all.filter(f => !f.pagada && !f.anulada);
     const venc   = all.filter(f => !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < HOY);
     const totalPend = pend.reduce((a,f)=>a+(f.restante||0),0);
@@ -176,12 +176,12 @@
     `;
   }
 
-  function renderTabla() {
+  async function renderTabla() {
     const filtCli   = document.getElementById('filtro-cliente').value.toLowerCase();
     const filtNro   = document.getElementById('filtro-nro').value.toLowerCase();
     const filtEstado= document.getElementById('filtro-estado').value;
 
-    let datos = DB.Facturas.getAll();
+    let datos = await DB.Facturas.getAll();
     if (filtCli)  datos = datos.filter(f => f.cliente.toLowerCase().includes(filtCli));
     if (filtNro)  datos = datos.filter(f => String(f.nro).includes(filtNro));
     if (filtEstado === 'pendiente') datos = datos.filter(f => !f.pagada && !f.anulada && !(f.fechaVenc && f.fechaVenc < HOY));
@@ -276,7 +276,7 @@
     editandoId = null;
   }
 
-  function guardar() {
+  async function guardar() {
     const estado = document.getElementById('f-pagada').value;
     const data = {
       nro: document.getElementById('f-nro').value.trim(),
@@ -297,8 +297,8 @@
       el.style.display = 'flex'; return;
     }
     try {
-      if (editandoId) DB.Facturas.update(editandoId, data);
-      else DB.Facturas.add(data);
+      if (editandoId) await DB.Facturas.update(editandoId, data);
+      else await DB.Facturas.add(data);
       cerrarModal(); renderTabla(); renderKPIs();
     } catch(e) {
       const el = document.getElementById('modal-error');
@@ -306,12 +306,12 @@
     }
   }
 
-  function eliminar(id) {
+  async function eliminar(id) {
     if (!confirm('¿Eliminar esta factura?')) return;
-    DB.Facturas.delete(id); renderTabla(); renderKPIs();
+    await DB.Facturas.delete(id); renderTabla(); renderKPIs();
   }
 
-  renderKPIs(); renderTabla();
+  window.addEventListener('auth-ready', () => { renderKPIs(); renderTabla(); });
 </script>
 </body>
 </html>

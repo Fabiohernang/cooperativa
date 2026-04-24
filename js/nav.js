@@ -1,0 +1,210 @@
+// nav.js — Inyecta el nav y maneja auth en todas las páginas
+// Uso: <script type="module" src="../js/nav.js"></script>
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, updateDoc, deleteDoc,
+  doc, getDocs, query, orderBy, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDeQfS11TFpuS0eQw_wTPcRFD4ZJ6dbRSE",
+  authDomain: "cooperativa-transport.firebaseapp.com",
+  projectId: "cooperativa-transport",
+  storageBucket: "cooperativa-transport.firebasestorage.app",
+  messagingSenderId: "809291027400",
+  appId: "1:809291027400:web:cce398fd9d100e5287e6fd"
+};
+
+const AUTORIZADOS = [
+  "fabiohernang@gmail.com",
+  // mail de Juan acá
+];
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── Helpers globales ───────────────────────────────────
+window.fmt = function(n) {
+  if (n === undefined || n === null || n === '') return '—';
+  return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+window.fmtFecha = function(str) {
+  if (!str) return '—';
+  const [y, m, d] = str.split('-');
+  return `${d}/${m}/${y}`;
+};
+window.hoy = function() { return new Date().toISOString().slice(0, 10); };
+
+// ── Guard + nav ────────────────────────────────────────
+const isPages = window.location.pathname.includes('/pages/');
+const ROOT    = isPages ? '../' : './';
+
+onAuthStateChanged(auth, user => {
+  if (!user || !AUTORIZADOS.includes(user.email)) {
+    window.location.href = ROOT + 'login.html';
+    return;
+  }
+  // Inyectar nombre de usuario en nav
+  const navUser = document.getElementById('nav-user');
+  if (navUser) navUser.textContent = user.displayName || user.email;
+  const navFecha = document.getElementById('nav-fecha');
+  if (navFecha) navFecha.textContent = new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+
+  // Disparar evento para que la página sepa que puede arrancar
+  window.dispatchEvent(new CustomEvent('auth-ready', { detail: { user } }));
+});
+
+window.doLogout = async function() {
+  await signOut(auth);
+  window.location.href = ROOT + 'login.html';
+};
+
+// ── API Viajes ─────────────────────────────────────────
+window.DB = {
+  Viajes: {
+    async getAll() {
+      const q = query(collection(db, 'viajes'), orderBy('fecha', 'desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async getByFactura(nro) {
+      const q = query(collection(db, 'viajes'), where('factura', '==', String(nro)));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async getByFletero(nombre) {
+      const all = await this.getAll();
+      return all.filter(v => v.fletero.toLowerCase().includes(nombre.toLowerCase()));
+    },
+    _calc(data) {
+      const imp = (parseFloat(data.tarifa)||0) * (parseFloat(data.kg)||0);
+      const iva = +(imp * 1.21).toFixed(6);
+      const com = +(iva * (data.socio === 'SI' ? 0.06 : 0.10)).toFixed(6);
+      const mat = data.factura ? +(iva * 0.015).toFixed(6) : 0;
+      return { importe: +imp.toFixed(6), importeIVA: iva, comision: com, comisionMat: mat };
+    },
+    async add(data) {
+      if (data.ctg) {
+        const ex = await getDocs(query(collection(db,'viajes'), where('ctg','==',String(data.ctg))));
+        if (!ex.empty) throw new Error(`CTG ${data.ctg} ya existe en otro viaje.`);
+      }
+      const v = {
+        fecha: data.fecha, cliente: data.cliente, factura: data.factura||'',
+        fletero: data.fletero, socio: data.socio==='SI'?'SI':'NO',
+        ctg: data.ctg||'', origen: data.origen||'', destino: data.destino||'',
+        km: parseFloat(data.km)||0, tarifa: parseFloat(data.tarifa)||0,
+        kg: parseFloat(data.kg)||0, liquidado: false,
+        observaciones: data.observaciones||'', ...this._calc(data), creado: serverTimestamp()
+      };
+      const ref = await addDoc(collection(db,'viajes'), v);
+      return { id: ref.id, ...v };
+    },
+    async update(id, data) {
+      const u = {
+        fecha: data.fecha, cliente: data.cliente, factura: data.factura||'',
+        fletero: data.fletero, socio: data.socio==='SI'?'SI':'NO',
+        ctg: data.ctg||'', origen: data.origen||'', destino: data.destino||'',
+        km: parseFloat(data.km)||0, tarifa: parseFloat(data.tarifa)||0,
+        kg: parseFloat(data.kg)||0, observaciones: data.observaciones||'', ...this._calc(data)
+      };
+      await updateDoc(doc(db,'viajes',id), u);
+      return { id, ...u };
+    },
+    async marcarLiquidado(id, val=true) { await updateDoc(doc(db,'viajes',id), {liquidado:val}); },
+    async delete(id) { await deleteDoc(doc(db,'viajes',id)); }
+  },
+
+  // ── API Facturas ───────────────────────────────────────
+  Facturas: {
+    async getAll() {
+      const q = query(collection(db,'facturas'), orderBy('fechaEmis','desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    _calc(data) {
+      const s = parseFloat(data.saldo)||0, p = parseFloat(data.pago)||0, r = parseFloat(data.retenciones)||0;
+      const restante = +(s-p-r).toFixed(2);
+      const vencida  = !data.pagada && !data.anulada && data.fechaVenc && data.fechaVenc < window.hoy();
+      return { restante, vencida: !!vencida };
+    },
+    async add(data) {
+      const ex = await getDocs(query(collection(db,'facturas'), where('nro','==',String(data.nro))));
+      if (!ex.empty) throw new Error(`Factura ${data.nro} ya existe.`);
+      const f = {
+        nro: String(data.nro), cliente: data.cliente, fechaEmis: data.fechaEmis,
+        fechaVenc: data.fechaVenc||'', saldo: parseFloat(data.saldo)||0,
+        pago: parseFloat(data.pago)||0, retenciones: parseFloat(data.retenciones)||0,
+        fechaPago: data.fechaPago||'', observaciones: data.observaciones||'',
+        pagada: !!data.pagada, anulada: !!data.anulada, ...this._calc(data), creado: serverTimestamp()
+      };
+      const ref = await addDoc(collection(db,'facturas'), f);
+      return { id: ref.id, ...f };
+    },
+    async update(id, data) {
+      const u = {
+        nro: String(data.nro), cliente: data.cliente, fechaEmis: data.fechaEmis,
+        fechaVenc: data.fechaVenc||'', saldo: parseFloat(data.saldo)||0,
+        pago: parseFloat(data.pago)||0, retenciones: parseFloat(data.retenciones)||0,
+        fechaPago: data.fechaPago||'', observaciones: data.observaciones||'',
+        pagada: !!data.pagada, anulada: !!data.anulada, ...this._calc(data)
+      };
+      await updateDoc(doc(db,'facturas',id), u);
+      return { id, ...u };
+    },
+    async delete(id) { await deleteDoc(doc(db,'facturas',id)); }
+  },
+
+  // ── API Pagos ──────────────────────────────────────────
+  Pagos: {
+    async getAll() {
+      const q = query(collection(db,'pagos'), orderBy('fechaOP','desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async getByFletero(nombre) {
+      const all = await this.getAll();
+      return all.filter(p => p.fletero.toLowerCase().includes(nombre.toLowerCase()));
+    },
+    _calc(data) {
+      const imp = parseFloat(data.impFactura)||0;
+      const apagar = +(imp-(parseFloat(data.comision)||0)-(parseFloat(data.cuota)||0)-(parseFloat(data.seguros)||0)-(parseFloat(data.adelantos)||0)-(parseFloat(data.combustible)||0)-(parseFloat(data.percepciones)||0)-(parseFloat(data.otro)||0)).toFixed(2);
+      return { impAPagar: apagar };
+    },
+    async add(data) {
+      const p = {
+        nroOrden: data.nroOrden, fechaOP: data.fechaOP, fletero: data.fletero,
+        factura: data.factura||'', fechaFact: data.fechaFact||'',
+        impFactura: parseFloat(data.impFactura)||0, comision: parseFloat(data.comision)||0,
+        cuota: parseFloat(data.cuota)||0, seguros: parseFloat(data.seguros)||0,
+        adelantos: parseFloat(data.adelantos)||0, combustible: parseFloat(data.combustible)||0,
+        percepciones: parseFloat(data.percepciones)||0, otro: parseFloat(data.otro)||0,
+        detalleOtro: data.detalleOtro||'', retenciones: parseFloat(data.retenciones)||0,
+        medioPago: data.medioPago||'', fechaCobro: data.fechaCobro||'',
+        nroCheq: data.nroCheq||'', impPagado: parseFloat(data.impPagado)||0,
+        observaciones: data.observaciones||'', ...this._calc(data), creado: serverTimestamp()
+      };
+      const ref = await addDoc(collection(db,'pagos'), p);
+      return { id: ref.id, ...p };
+    },
+    async update(id, data) {
+      const u = {
+        nroOrden: data.nroOrden, fechaOP: data.fechaOP, fletero: data.fletero,
+        factura: data.factura||'', fechaFact: data.fechaFact||'',
+        impFactura: parseFloat(data.impFactura)||0, comision: parseFloat(data.comision)||0,
+        cuota: parseFloat(data.cuota)||0, seguros: parseFloat(data.seguros)||0,
+        adelantos: parseFloat(data.adelantos)||0, combustible: parseFloat(data.combustible)||0,
+        percepciones: parseFloat(data.percepciones)||0, otro: parseFloat(data.otro)||0,
+        detalleOtro: data.detalleOtro||'', retenciones: parseFloat(data.retenciones)||0,
+        medioPago: data.medioPago||'', fechaCobro: data.fechaCobro||'',
+        nroCheq: data.nroCheq||'', impPagado: parseFloat(data.impPagado)||0,
+        observaciones: data.observaciones||'', ...this._calc(data)
+      };
+      await updateDoc(doc(db,'pagos',id), u);
+      return { id, ...u };
+    },
+    async delete(id) { await deleteDoc(doc(db,'pagos',id)); }
+  }
+};

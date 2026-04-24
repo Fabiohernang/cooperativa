@@ -490,3 +490,27 @@ input.computed {
 .flex { display: flex; }
 .gap-10 { gap: 10px; }
 .items-center { align-items: center; }
+
+/* ── NAV usuario/logout (Firebase) ───────────────────── */
+.nav-user-btn {
+  background: var(--gris2);
+  border: 1px solid var(--gris3);
+  color: var(--gris5);
+  font-size: 12px;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gris5);
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.btn-logout:hover { color: var(--rojo2); background: rgba(220,38,38,.1); }

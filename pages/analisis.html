@@ -129,7 +129,7 @@
   <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
   <a href="analisis.html" class="active"><span class="nav-icon">📈</span> Análisis</a>
   <div class="nav-spacer"></div>
-  <div class="nav-user" id="nav-fecha">—</div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
 </nav>
 
 <div class="page">
@@ -195,17 +195,15 @@
 
 </div>
 
-<script src="../js/db.js"></script>
+<script type="module" src="../js/nav.js"></script>
 <script>
   document.getElementById('nav-fecha').textContent =
     new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
 
   const HOY = hoy();
 
-  function renderKPIs() {
-    const viajes   = DB.Viajes.getAll();
-    const facturas = DB.Facturas.getAll();
-    const pagos    = DB.Pagos.getAll();
+  async function renderKPIs() {
+    const [viajes, facturas, pagos] = await Promise.all([DB.Viajes.getAll(), DB.Facturas.getAll(), DB.Pagos.getAll()]);
 
     const facturado = viajes.filter(v=>v.factura).reduce((a,v)=>a+(v.importeIVA||0),0);
     const cobrado   = facturas.reduce((a,f)=>a+(f.pago||0),0);
@@ -226,8 +224,8 @@
     `;
   }
 
-  function renderDescuentos() {
-    const pagos = DB.Pagos.getAll();
+  async function renderDescuentos() {
+    const pagos = await DB.Pagos.getAll();
     const conceptos = [
       { key: 'comision',     label: 'Comisión Coop.',  color: '#2563a8' },
       { key: 'cuota',        label: 'Cuota',            color: '#16a34a' },
@@ -264,8 +262,8 @@
       }).join('');
   }
 
-  function renderClientes() {
-    const facturas = DB.Facturas.getAll();
+  async function renderClientes() {
+    const facturas = await DB.Facturas.getAll();
     const mapa = {};
     facturas.filter(f => !f.pagada && !f.anulada && f.restante > 0).forEach(f => {
       if (!mapa[f.cliente]) mapa[f.cliente] = { pendiente: 0, vencido: 0, cant: 0 };
@@ -294,8 +292,8 @@
     `).join('');
   }
 
-  function renderChart() {
-    const facturas = DB.Facturas.getAll();
+  async function renderChart() {
+    const facturas = await DB.Facturas.getAll();
     const pagos    = DB.Pagos.getAll();
     const ahora = new Date();
     const meses = [];
@@ -330,15 +328,14 @@
     `;
   }
 
-  function buscarFletero() {
+  async function buscarFletero() {
     const q = document.getElementById('input-fletero').value.trim();
     if (!q) {
       document.getElementById('panel-fletero').innerHTML =
         '<div class="empty-state"><div class="icon">🔍</div><p>Ingresá un nombre para buscar</p></div>';
       return;
     }
-    const viajes = DB.Viajes.getByFletero(q);
-    const pagos  = DB.Pagos.getByFletero(q);
+    const [viajes, pagos] = await Promise.all([DB.Viajes.getByFletero(q), DB.Pagos.getByFletero(q)]);
 
     if (viajes.length===0 && pagos.length===0) {
       document.getElementById('panel-fletero').innerHTML =
@@ -432,10 +429,12 @@
     `;
   }
 
-  renderKPIs();
-  renderDescuentos();
-  renderClientes();
-  renderChart();
+  window.addEventListener('auth-ready', async () => {
+    await renderKPIs();
+    await renderDescuentos();
+    await renderClientes();
+    renderChart();
+  });
 </script>
 </body>
 </html>

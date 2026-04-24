@@ -123,7 +123,7 @@
   <a href="conciliacion.html" class="active"><span class="nav-icon">✅</span> Conciliación</a>
   <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
   <div class="nav-spacer"></div>
-  <div class="nav-user" id="nav-fecha">—</div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
 </nav>
 
 <div class="page">
@@ -256,23 +256,22 @@
   </div>
 </div>
 
-<script src="../js/db.js"></script>
+<script type="module" src="../js/nav.js"></script>
 <script>
   let facturaActual = null;
   let viajesPropios = [];
   let lineasSistema = [];
 
-  document.getElementById('nav-fecha').textContent =
-    new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+  window.addEventListener('auth-ready', () => {});
 
-  function buscarFactura() {
+  async function buscarFactura() {
     const nro = document.getElementById('input-factura').value.trim();
     if (!nro) {
       document.getElementById('info-factura').textContent = 'Ingresá un número de factura para empezar';
       document.getElementById('panel-concil').style.display = 'none';
       return;
     }
-    const viajes = DB.Viajes.getByFactura(nro);
+    const viajes = await DB.Viajes.getByFactura(nro);
     if (viajes.length === 0) {
       document.getElementById('info-factura').innerHTML =
         `<span style="color:var(--rojo2)">⚠️ No hay viajes cargados para la factura "${nro}"</span>`;
@@ -418,9 +417,9 @@
     renderConcil();
   }
 
-  function marcarLiquidados() {
+  async function marcarLiquidados() {
     if (!confirm(`¿Marcar los ${viajesPropios.length} viajes de la factura ${facturaActual} como liquidados?`)) return;
-    viajesPropios.forEach(v => DB.Viajes.marcarLiquidado(v.id, true));
+    for (const v of viajesPropios) await DB.Viajes.marcarLiquidado(v.id, true);
     alert(`✅ ${viajesPropios.length} viajes marcados como liquidados.`);
     buscarFactura();
   }
