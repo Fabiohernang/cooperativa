@@ -68,7 +68,7 @@ const Viajes = {
     viaje.importe     = +(viaje.tarifa * viaje.kg).toFixed(2);
     viaje.importeIVA  = +(viaje.importe * 1.21).toFixed(6);
     viaje.comision    = +(viaje.importeIVA * (viaje.socio === 'SI' ? 0.06 : 0.10)).toFixed(6);
-    viaje.comisionMat = viaje.factura ? +(viaje.importeIVA * 0.015).toFixed(6) : 0;
+    viaje.comisionMat = viaje.factura ? +(viaje.importe * 0.015).toFixed(6) : 0;
     db.viajes.push(viaje);
     saveDB(db);
     return viaje;
@@ -82,7 +82,7 @@ const Viajes = {
     v.importe     = +(v.tarifa * v.kg).toFixed(2);
     v.importeIVA  = +(v.importe * 1.21).toFixed(6);
     v.comision    = +(v.importeIVA * (v.socio === 'SI' ? 0.06 : 0.10)).toFixed(6);
-    v.comisionMat = v.factura ? +(v.importeIVA * 0.015).toFixed(6) : 0;
+    v.comisionMat = v.factura ? +(v.importe * 0.015).toFixed(6) : 0;
     db.viajes[idx] = v;
     saveDB(db);
     return v;
