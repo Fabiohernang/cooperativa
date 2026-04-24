@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reportes · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    @media print {
+      nav, .no-print, .tabs { display: none !important; }
+      .tab-content { display: block !important; }
+      .page { padding: 0; }
+      body { background: white; }
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--gris6);
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 10px 18px;
+      border: none;
+      background: none;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--gris4);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .15s;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .tab-btn:hover { color: var(--gris1); background: var(--gris7); }
+    .tab-btn.active { color: var(--azul2); border-bottom-color: var(--azul2); font-weight: 700; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Filtros */
+    .reporte-filtros {
+      background: var(--blanco);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .reporte-filtros .form-group { margin: 0; min-width: 140px; }
+    .reporte-filtros select,
+    .reporte-filtros input { width: auto; }
+
+    /* Tabla reporte */
+    .reporte-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--gris6);
+      box-shadow: var(--sombra);
+    }
+    .reporte-table-wrap table { font-size: 12px; }
+    .reporte-table-wrap thead th { font-size: 10px; }
+
+    /* Cards de resumen */
+    .resumen-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .strip-item {
+      background: var(--blanco);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--sombra);
+    }
+    .strip-label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris4); font-weight: 600; margin-bottom: 4px; }
+    .strip-val { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--gris1); }
+    .strip-val.verde { color: var(--verde2); }
+    .strip-val.azul  { color: var(--azul2); }
+    .strip-val.naranja { color: var(--naranja2); }
+
+    /* Ranking fleteros */
+    .ranking-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--gris6);
+      margin-bottom: 8px;
+      background: var(--blanco);
+    }
+    .ranking-pos {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gris5);
+      min-width: 28px;
+      text-align: center;
+    }
+    .ranking-pos.gold   { color: #f59e0b; }
+    .ranking-pos.silver { color: #94a3b8; }
+    .ranking-pos.bronze { color: #b45309; }
+    .ranking-nombre { flex: 1; font-weight: 600; font-size: 13px; }
+    .ranking-bar-wrap { flex: 2; height: 8px; background: var(--gris6); border-radius: 4px; overflow: hidden; }
+    .ranking-bar { height: 100%; border-radius: 4px; background: var(--azul2); transition: width .4s; }
+    .ranking-monto { font-family: var(--mono); font-size: 12px; font-weight: 600; min-width: 110px; text-align: right; }
+    .ranking-viajes { font-size: 11px; color: var(--gris4); min-width: 60px; text-align: right; }
+
+    /* Matías */
+    .matias-mes {
+      background: var(--blanco);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .matias-mes-header {
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background: var(--gris8);
+      border-bottom: 1px solid var(--gris6);
+    }
+    .matias-mes-header:hover { background: var(--gris7); }
+    .matias-mes-titulo { font-weight: 700; font-size: 13px; }
+    .matias-mes-total { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--naranja2); }
+    .matias-mes-body { display: none; padding: 0; }
+    .matias-mes-body.open { display: block; }
+
+    .empty-tab {
+      text-align: center;
+      padding: 60px;
+      color: var(--gris5);
+    }
+    .empty-tab .icon { font-size: 40px; margin-bottom: 12px; }
+
+    .btn-print {
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <a href="reportes.html" class="active"><span class="nav-icon">📑</span> Reportes</a>
+  <a href="recibo.html"><span class="nav-icon">🖨️</span> Recibo</a>
+  <a href="config.html"><span class="nav-icon">⚙️</span> Config</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
+</nav>
+
+<div class="page">
+  <div class="page-header no-print">
+    <div>
+      <div class="page-title">📑 Reportes y Estadísticas</div>
+      <div class="page-sub">Resúmenes por fletero, por período y comisiones</div>
+    </div>
+    <button class="btn btn-ghost no-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs no-print">
+    <button class="tab-btn active" onclick="cambiarTab('fletero')">👤 Por Fletero</button>
+    <button class="tab-btn" onclick="cambiarTab('mes')">📅 Por Mes</button>
+    <button class="tab-btn" onclick="cambiarTab('anio')">📆 Por Año</button>
+    <button class="tab-btn" onclick="cambiarTab('matias')">💰 Comisión Matías</button>
+    <button class="tab-btn" onclick="cambiarTab('clientes')">🏦 Por Cliente</button>
+  </div>
+
+  <!-- ══ TAB: POR FLETERO ══════════════════════════════ -->
+  <div class="tab-content active" id="tab-fletero">
+    <div class="reporte-filtros no-print">
+      <div class="form-group">
+        <label>Año</label>
+        <select id="fil-anio-fl" onchange="renderFletero()"></select>
+      </div>
+      <div class="form-group">
+        <label>Mes</label>
+        <select id="fil-mes-fl" onchange="renderFletero()">
+          <option value="">Todos</option>
+          <option value="1">Enero</option><option value="2">Febrero</option>
+          <option value="3">Marzo</option><option value="4">Abril</option>
+          <option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option>
+          <option value="9">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Buscar fletero</label>
+        <input type="text" id="fil-nombre-fl" placeholder="Nombre..." oninput="renderFletero()" style="width:200px">
+      </div>
+    </div>
+    <div id="resumen-fletero"></div>
+    <div id="ranking-fletero"></div>
+  </div>
+
+  <!-- ══ TAB: POR MES ══════════════════════════════════ -->
+  <div class="tab-content" id="tab-mes">
+    <div class="reporte-filtros no-print">
+      <div class="form-group">
+        <label>Año</label>
+        <select id="fil-anio-mes" onchange="renderMes()"></select>
+      </div>
+    </div>
+    <div id="resumen-mes-strip"></div>
+    <div class="reporte-table-wrap">
+      <table id="tabla-mes"></table>
+    </div>
+  </div>
+
+  <!-- ══ TAB: POR AÑO ══════════════════════════════════ -->
+  <div class="tab-content" id="tab-anio">
+    <div id="resumen-anio-strip"></div>
+    <div class="reporte-table-wrap">
+      <table id="tabla-anio"></table>
+    </div>
+  </div>
+
+  <!-- ══ TAB: COMISIÓN MATÍAS ══════════════════════════ -->
+  <div class="tab-content" id="tab-matias">
+    <div class="reporte-filtros no-print">
+      <div class="form-group">
+        <label>Año</label>
+        <select id="fil-anio-mat" onchange="renderMatias()"></select>
+      </div>
+    </div>
+    <div id="resumen-matias-strip"></div>
+    <div id="panel-matias"></div>
+  </div>
+
+  <!-- ══ TAB: POR CLIENTE ═══════════════════════════════ -->
+  <div class="tab-content" id="tab-clientes">
+    <div class="reporte-filtros no-print">
+      <div class="form-group">
+        <label>Año</label>
+        <select id="fil-anio-cli" onchange="renderClientes()"></select>
+      </div>
+      <div class="form-group">
+        <label>Mes</label>
+        <select id="fil-mes-cli" onchange="renderClientes()">
+          <option value="">Todos</option>
+          <option value="1">Enero</option><option value="2">Febrero</option>
+          <option value="3">Marzo</option><option value="4">Abril</option>
+          <option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option>
+          <option value="9">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    <div id="resumen-cli-strip"></div>
+    <div class="reporte-table-wrap">
+      <table id="tabla-clientes"></table>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="../js/nav.js"></script>
+<script>
+  let VIAJES = [], PAGOS = [], FACTURAS = [];
+  const MESES_NOM = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  // ── Tabs ───────────────────────────────────────────
+  function cambiarTab(id) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+    if (id === 'fletero') renderFletero();
+    if (id === 'mes')     renderMes();
+    if (id === 'anio')    renderAnio();
+    if (id === 'matias')  renderMatias();
+    if (id === 'clientes')renderClientes();
+  }
+
+  // ── Helpers ────────────────────────────────────────
+  function aniosDisponibles(lista, campoFecha) {
+    const set = new Set(lista.map(x => x[campoFecha] ? x[campoFecha].slice(0,4) : null).filter(Boolean));
+    return [...set].sort((a,b) => b-a);
+  }
+
+  function llenarSelectAnio(selectId, anios, onChange) {
+    const sel = document.getElementById(selectId);
+    const actual = sel.value;
+    sel.innerHTML = anios.map(a => `<option value="${a}">${a}</option>`).join('');
+    if (actual && anios.includes(actual)) sel.value = actual;
+  }
+
+  function filtrarPorPeriodo(lista, campoFecha, anio, mes) {
+    return lista.filter(x => {
+      if (!x[campoFecha]) return false;
+      const d = x[campoFecha];
+      if (anio && !d.startsWith(anio)) return false;
+      if (mes  && parseInt(d.slice(5,7)) !== parseInt(mes)) return false;
+      return true;
+    });
+  }
+
+  function strip(items) {
+    return `<div class="resumen-strip">${items.map(i =>
+      `<div class="strip-item"><div class="strip-label">${i.label}</div><div class="strip-val ${i.cls||''}">${i.val}</div></div>`
+    ).join('')}</div>`;
+  }
+
+  function thRow(cols) {
+    return `<thead><tr>${cols.map(c=>`<th${c.r?' class="text-right"':''}>${c.t}</th>`).join('')}</tr></thead>`;
+  }
+
+  // ══ RENDER FLETERO ══════════════════════════════════
+  function renderFletero() {
+    const anio = document.getElementById('fil-anio-fl').value;
+    const mes  = document.getElementById('fil-mes-fl').value;
+    const busq = document.getElementById('fil-nombre-fl').value.toLowerCase();
+
+    const vFilt = filtrarPorPeriodo(VIAJES, 'fecha', anio, mes);
+
+    // Agrupar por fletero
+    const mapa = {};
+    vFilt.forEach(v => {
+      const k = v.fletero;
+      if (!mapa[k]) mapa[k] = { viajes:0, kg:0, importe:0, importeIVA:0, comision:0, comisionMat:0 };
+      mapa[k].viajes++;
+      mapa[k].kg          += v.kg||0;
+      mapa[k].importe     += v.importe||0;
+      mapa[k].importeIVA  += v.importeIVA||0;
+      mapa[k].comision    += v.comision||0;
+      mapa[k].comisionMat += v.comisionMat||0;
+    });
+
+    let lista = Object.entries(mapa)
+      .map(([nombre, d]) => ({ nombre, ...d }))
+      .filter(x => !busq || x.nombre.toLowerCase().includes(busq))
+      .sort((a,b) => b.importeIVA - a.importeIVA);
+
+    const totViajes = lista.reduce((a,x)=>a+x.viajes,0);
+    const totIVA    = lista.reduce((a,x)=>a+x.importeIVA,0);
+    const totCom    = lista.reduce((a,x)=>a+x.comision,0);
+    const totMat    = lista.reduce((a,x)=>a+x.comisionMat,0);
+
+    document.getElementById('resumen-fletero').innerHTML = strip([
+      { label:'Fleteros activos', val: lista.length, cls:'azul' },
+      { label:'Total viajes',     val: totViajes },
+      { label:'Total Imp+IVA',    val: '$'+fmt(totIVA), cls:'azul' },
+      { label:'Total Comisión',   val: '$'+fmt(totCom), cls:'verde' },
+      { label:'Comis. Matías',    val: '$'+fmt(totMat), cls:'naranja' },
+    ]);
+
+    if (lista.length === 0) {
+      document.getElementById('ranking-fletero').innerHTML =
+        '<div class="empty-tab"><div class="icon">👤</div><p>Sin viajes en el período</p></div>';
+      return;
+    }
+
+    const maxIVA = lista[0].importeIVA || 1;
+    document.getElementById('ranking-fletero').innerHTML =
+      lista.map((x, i) => {
+        const cls = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+        const pct = (x.importeIVA / maxIVA * 100).toFixed(1);
+        return `<div class="ranking-row">
+          <div class="ranking-pos ${cls}">${i+1}</div>
+          <div class="ranking-nombre">${x.nombre}
+            <div style="font-size:11px;color:var(--gris4)">${x.viajes} viaje${x.viajes!==1?'s':''} · KG: ${fmt(x.kg)}</div>
+          </div>
+          <div class="ranking-bar-wrap"><div class="ranking-bar" style="width:${pct}%"></div></div>
+          <div style="text-align:right">
+            <div class="ranking-monto">$${fmt(x.importeIVA)}</div>
+            <div style="font-size:10px;color:var(--verde2)">Com: $${fmt(x.comision)}</div>
+          </div>
+        </div>`;
+      }).join('') +
+      `<div class="ranking-row" style="background:var(--gris8);margin-top:8px">
+        <div class="ranking-pos">—</div>
+        <div class="ranking-nombre" style="font-weight:700">TOTAL</div>
+        <div class="ranking-bar-wrap"></div>
+        <div style="text-align:right">
+          <div class="ranking-monto">$${fmt(totIVA)}</div>
+          <div style="font-size:10px;color:var(--verde2)">Com: $${fmt(totCom)}</div>
+        </div>
+      </div>`;
+  }
+
+  // ══ RENDER MES ══════════════════════════════════════
+  function renderMes() {
+    const anio = document.getElementById('fil-anio-mes').value;
+    const vAnio = filtrarPorPeriodo(VIAJES, 'fecha', anio, '');
+    const pAnio = filtrarPorPeriodo(PAGOS, 'fechaOP', anio, '');
+    const fAnio = filtrarPorPeriodo(FACTURAS, 'fechaEmis', anio, '');
+
+    const totIVA = vAnio.reduce((a,v)=>a+v.importeIVA,0);
+    const totCom = vAnio.reduce((a,v)=>a+v.comision,0);
+    const totPag = pAnio.reduce((a,p)=>a+p.impPagado,0);
+    const totCob = fAnio.reduce((a,f)=>a+f.pago,0);
+
+    document.getElementById('resumen-mes-strip').innerHTML = strip([
+      { label:`Facturado ${anio}`,  val:'$'+fmt(totIVA), cls:'azul' },
+      { label:`Cobrado ${anio}`,    val:'$'+fmt(totCob), cls:'verde' },
+      { label:`Pagado Flet. ${anio}`,val:'$'+fmt(totPag), cls:'naranja' },
+      { label:`Comisión ${anio}`,   val:'$'+fmt(totCom), cls:'verde' },
+      { label:'Resultado',          val:'$'+fmt(totCob-totPag), cls: totCob-totPag>=0?'verde':'rojo' },
+    ]);
+
+    const filas = [];
+    for (let m = 1; m <= 12; m++) {
+      const vM = vAnio.filter(v => parseInt(v.fecha?.slice(5,7)) === m);
+      const pM = pAnio.filter(p => parseInt(p.fechaOP?.slice(5,7)) === m);
+      const fM = fAnio.filter(f => parseInt(f.fechaEmis?.slice(5,7)) === m);
+      filas.push({
+        mes: MESES_NOM[m],
+        viajes: vM.length,
+        kg: vM.reduce((a,v)=>a+v.kg,0),
+        importe: vM.reduce((a,v)=>a+v.importeIVA,0),
+        comision: vM.reduce((a,v)=>a+v.comision,0),
+        comisionMat: vM.reduce((a,v)=>a+v.comisionMat,0),
+        cobrado: fM.reduce((a,f)=>a+f.pago,0),
+        pagado: pM.reduce((a,p)=>a+p.impPagado,0),
+      });
+    }
+
+    document.getElementById('tabla-mes').innerHTML =
+      thRow([
+        {t:'Mes'},{t:'Viajes',r:1},{t:'KG Total',r:1},
+        {t:'Imp+IVA',r:1},{t:'Comisión',r:1},{t:'Comis. Matías',r:1},
+        {t:'Cobrado',r:1},{t:'Pagado Flet.',r:1},{t:'Resultado',r:1}
+      ]) +
+      `<tbody>` +
+      filas.map(f => {
+        const res = f.cobrado - f.pagado;
+        const noData = f.viajes === 0 && f.cobrado === 0 && f.pagado === 0;
+        return `<tr style="${noData?'color:var(--gris5)':''}">
+          <td class="fw-600">${f.mes}</td>
+          <td class="mono text-right">${f.viajes||'—'}</td>
+          <td class="mono text-right">${f.kg>0?fmt(f.kg):'—'}</td>
+          <td class="mono text-right">${f.importe>0?'$'+fmt(f.importe):'—'}</td>
+          <td class="mono text-right" style="color:var(--verde2)">${f.comision>0?'$'+fmt(f.comision):'—'}</td>
+          <td class="mono text-right" style="color:var(--naranja2)">${f.comisionMat>0?'$'+fmt(f.comisionMat):'—'}</td>
+          <td class="mono text-right" style="color:var(--azul2)">${f.cobrado>0?'$'+fmt(f.cobrado):'—'}</td>
+          <td class="mono text-right">${f.pagado>0?'$'+fmt(f.pagado):'—'}</td>
+          <td class="mono text-right fw-600" style="color:${res>0?'var(--verde2)':res<0?'var(--rojo2)':'inherit'}">${f.cobrado>0||f.pagado>0?'$'+fmt(res):'—'}</td>
+        </tr>`;
+      }).join('') +
+      `<tr style="background:var(--gris7);font-weight:700">
+        <td>TOTAL ${anio}</td>
+        <td class="mono text-right">${filas.reduce((a,f)=>a+f.viajes,0)}</td>
+        <td class="mono text-right">$${fmt(filas.reduce((a,f)=>a+f.kg,0))}</td>
+        <td class="mono text-right">$${fmt(totIVA)}</td>
+        <td class="mono text-right" style="color:var(--verde2)">$${fmt(totCom)}</td>
+        <td class="mono text-right" style="color:var(--naranja2)">$${fmt(filas.reduce((a,f)=>a+f.comisionMat,0))}</td>
+        <td class="mono text-right" style="color:var(--azul2)">$${fmt(totCob)}</td>
+        <td class="mono text-right">$${fmt(totPag)}</td>
+        <td class="mono text-right" style="color:${totCob-totPag>=0?'var(--verde2)':'var(--rojo2)'}">$${fmt(totCob-totPag)}</td>
+      </tr></tbody>`;
+  }
+
+  // ══ RENDER AÑO ══════════════════════════════════════
+  function renderAnio() {
+    const anios = aniosDisponibles(VIAJES, 'fecha');
+    if (anios.length === 0) {
+      document.getElementById('tabla-anio').innerHTML = '';
+      document.getElementById('resumen-anio-strip').innerHTML =
+        '<div class="empty-tab"><div class="icon">📆</div><p>Sin datos</p></div>';
+      return;
+    }
+
+    const filas = anios.map(anio => {
+      const vA = filtrarPorPeriodo(VIAJES,'fecha',anio,'');
+      const pA = filtrarPorPeriodo(PAGOS,'fechaOP',anio,'');
+      const fA = filtrarPorPeriodo(FACTURAS,'fechaEmis',anio,'');
+      return {
+        anio,
+        viajes: vA.length,
+        fleteros: new Set(vA.map(v=>v.fletero)).size,
+        kg: vA.reduce((a,v)=>a+v.kg,0),
+        importe: vA.reduce((a,v)=>a+v.importeIVA,0),
+        comision: vA.reduce((a,v)=>a+v.comision,0),
+        comisionMat: vA.reduce((a,v)=>a+v.comisionMat,0),
+        cobrado: fA.reduce((a,f)=>a+f.pago,0),
+        pagado: pA.reduce((a,p)=>a+p.impPagado,0),
+      };
+    });
+
+    const totIVA = filas.reduce((a,f)=>a+f.importe,0);
+    document.getElementById('resumen-anio-strip').innerHTML = strip([
+      { label:'Total Facturado', val:'$'+fmt(totIVA), cls:'azul' },
+      { label:'Total Cobrado',   val:'$'+fmt(filas.reduce((a,f)=>a+f.cobrado,0)), cls:'verde' },
+      { label:'Total Pagado',    val:'$'+fmt(filas.reduce((a,f)=>a+f.pagado,0)), cls:'naranja' },
+      { label:'Total Viajes',    val: filas.reduce((a,f)=>a+f.viajes,0) },
+      { label:'Total KG',        val: fmt(filas.reduce((a,f)=>a+f.kg,0)) },
+    ]);
+
+    document.getElementById('tabla-anio').innerHTML =
+      thRow([
+        {t:'Año'},{t:'Viajes',r:1},{t:'Fleteros',r:1},{t:'KG Total',r:1},
+        {t:'Imp+IVA',r:1},{t:'Comisión',r:1},{t:'Comis. Matías',r:1},
+        {t:'Cobrado',r:1},{t:'Pagado Flet.',r:1},{t:'Resultado',r:1}
+      ]) +
+      `<tbody>` +
+      filas.map(f => {
+        const res = f.cobrado - f.pagado;
+        return `<tr>
+          <td class="fw-600">${f.anio}</td>
+          <td class="mono text-right">${f.viajes}</td>
+          <td class="mono text-right">${f.fleteros}</td>
+          <td class="mono text-right">${fmt(f.kg)}</td>
+          <td class="mono text-right fw-600">$${fmt(f.importe)}</td>
+          <td class="mono text-right" style="color:var(--verde2)">$${fmt(f.comision)}</td>
+          <td class="mono text-right" style="color:var(--naranja2)">$${fmt(f.comisionMat)}</td>
+          <td class="mono text-right" style="color:var(--azul2)">$${fmt(f.cobrado)}</td>
+          <td class="mono text-right">$${fmt(f.pagado)}</td>
+          <td class="mono text-right fw-600" style="color:${res>=0?'var(--verde2)':'var(--rojo2)'}">$${fmt(res)}</td>
+        </tr>`;
+      }).join('') +
+      `</tbody>`;
+  }
+
+  // ══ RENDER MATÍAS ═══════════════════════════════════
+  function renderMatias() {
+    const anio = document.getElementById('fil-anio-mat').value;
+    const vAnio = filtrarPorPeriodo(VIAJES, 'fecha', anio, '').filter(v => v.factura && v.comisionMat > 0);
+
+    const totalAnio = vAnio.reduce((a,v)=>a+v.comisionMat,0);
+    const totalViajes = vAnio.length;
+
+    document.getElementById('resumen-matias-strip').innerHTML = strip([
+      { label:`Total Comisión Matías ${anio}`, val:'$'+fmt(totalAnio), cls:'naranja' },
+      { label:'Viajes con comisión', val: totalViajes },
+      { label:'Promedio por mes', val:'$'+fmt(totalAnio/12), cls:'naranja' },
+    ]);
+
+    const mesesConDatos = [];
+    for (let m = 1; m <= 12; m++) {
+      const vM = vAnio.filter(v => parseInt(v.fecha?.slice(5,7)) === m);
+      if (vM.length === 0) continue;
+      const totalMes = vM.reduce((a,v)=>a+v.comisionMat,0);
+      mesesConDatos.push({ mes: m, nombre: MESES_NOM[m], viajes: vM, total: totalMes });
+    }
+
+    if (mesesConDatos.length === 0) {
+      document.getElementById('panel-matias').innerHTML =
+        '<div class="empty-tab"><div class="icon">💰</div><p>Sin comisiones registradas en ' + anio + '</p></div>';
+      return;
+    }
+
+    document.getElementById('panel-matias').innerHTML = mesesConDatos.map(m => `
+      <div class="matias-mes">
+        <div class="matias-mes-header" onclick="toggleMes(this)">
+          <div>
+            <div class="matias-mes-titulo">📅 ${m.nombre} ${anio}</div>
+            <div style="font-size:11px;color:var(--gris4);margin-top:2px">${m.viajes.length} viaje${m.viajes.length!==1?'s':''} con factura</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="matias-mes-total">$${fmt(m.total)}</div>
+            <div style="color:var(--gris4);font-size:18px">▾</div>
+          </div>
+        </div>
+        <div class="matias-mes-body">
+          <table style="width:100%">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Cliente</th><th>Factura</th><th>Fletero</th>
+                <th class="text-right">Imp. Neto</th><th class="text-right">1.5%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${m.viajes.map(v => `
+                <tr>
+                  <td>${fmtFecha(v.fecha)}</td>
+                  <td class="fw-600">${v.cliente}</td>
+                  <td class="mono">${v.factura}</td>
+                  <td>${v.fletero}</td>
+                  <td class="mono text-right">$${fmt(v.importe)}</td>
+                  <td class="mono text-right fw-600" style="color:var(--naranja2)">$${fmt(v.comisionMat)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="fw-600">TOTAL ${m.nombre}</td>
+                <td class="mono text-right">$${fmt(m.viajes.reduce((a,v)=>a+v.importe,0))}</td>
+                <td class="mono text-right fw-600" style="color:var(--naranja2)">$${fmt(m.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleMes(header) {
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+  }
+
+  // ══ RENDER CLIENTES ══════════════════════════════════
+  function renderClientes() {
+    const anio = document.getElementById('fil-anio-cli').value;
+    const mes  = document.getElementById('fil-mes-cli').value;
+
+    const vFilt = filtrarPorPeriodo(VIAJES, 'fecha', anio, mes).filter(v => v.factura);
+
+    const mapa = {};
+    vFilt.forEach(v => {
+      if (!mapa[v.cliente]) mapa[v.cliente] = { viajes:0, kg:0, importe:0, importeIVA:0, comision:0, fleteros: new Set() };
+      mapa[v.cliente].viajes++;
+      mapa[v.cliente].kg         += v.kg||0;
+      mapa[v.cliente].importe    += v.importe||0;
+      mapa[v.cliente].importeIVA += v.importeIVA||0;
+      mapa[v.cliente].comision   += v.comision||0;
+      mapa[v.cliente].fleteros.add(v.fletero);
+    });
+
+    const lista = Object.entries(mapa)
+      .map(([cliente, d]) => ({ cliente, ...d, fleteros: d.fleteros.size }))
+      .sort((a,b) => b.importeIVA - a.importeIVA);
+
+    const totIVA = lista.reduce((a,x)=>a+x.importeIVA,0);
+    const totCom = lista.reduce((a,x)=>a+x.comision,0);
+
+    document.getElementById('resumen-cli-strip').innerHTML = strip([
+      { label:'Clientes activos', val: lista.length, cls:'azul' },
+      { label:'Total Imp+IVA',   val:'$'+fmt(totIVA), cls:'azul' },
+      { label:'Total Comisión',  val:'$'+fmt(totCom), cls:'verde' },
+      { label:'Total Viajes',    val: lista.reduce((a,x)=>a+x.viajes,0) },
+    ]);
+
+    document.getElementById('tabla-clientes').innerHTML =
+      thRow([
+        {t:'Cliente'},{t:'Viajes',r:1},{t:'Fleteros',r:1},{t:'KG Total',r:1},
+        {t:'Imp. Neto',r:1},{t:'Imp+IVA',r:1},{t:'Comisión',r:1}
+      ]) +
+      `<tbody>` +
+      lista.map(x => `<tr>
+        <td class="fw-600">${x.cliente}</td>
+        <td class="mono text-right">${x.viajes}</td>
+        <td class="mono text-right">${x.fleteros}</td>
+        <td class="mono text-right">${fmt(x.kg)}</td>
+        <td class="mono text-right">$${fmt(x.importe)}</td>
+        <td class="mono text-right fw-600">$${fmt(x.importeIVA)}</td>
+        <td class="mono text-right" style="color:var(--verde2)">$${fmt(x.comision)}</td>
+      </tr>`).join('') +
+      `<tr style="background:var(--gris7);font-weight:700">
+        <td>TOTAL</td><td class="mono text-right">${lista.reduce((a,x)=>a+x.viajes,0)}</td>
+        <td></td><td class="mono text-right">$${fmt(lista.reduce((a,x)=>a+x.kg,0))}</td>
+        <td class="mono text-right">$${fmt(lista.reduce((a,x)=>a+x.importe,0))}</td>
+        <td class="mono text-right">$${fmt(totIVA)}</td>
+        <td class="mono text-right" style="color:var(--verde2)">$${fmt(totCom)}</td>
+      </tr></tbody>`;
+  }
+
+  // ── Init ───────────────────────────────────────────
+  window.addEventListener('auth-ready', async () => {
+    [VIAJES, PAGOS, FACTURAS] = await Promise.all([
+      DB.Viajes.getAll(), DB.Pagos.getAll(), DB.Facturas.getAll()
+    ]);
+
+    const aniosV = aniosDisponibles(VIAJES, 'fecha');
+    const aniosP = aniosDisponibles(PAGOS, 'fechaOP');
+    const aniosF = aniosDisponibles(FACTURAS, 'fechaEmis');
+    const todosAnios = [...new Set([...aniosV, ...aniosP, ...aniosF])].sort((a,b)=>b-a);
+    if (todosAnios.length === 0) todosAnios.push(String(new Date().getFullYear()));
+
+    ['fil-anio-fl','fil-anio-mes','fil-anio-mat','fil-anio-cli'].forEach(id => {
+      llenarSelectAnio(id, todosAnios);
+    });
+
+    renderFletero();
+    renderAnio();
+  });
+</script>
+</body>
+</html>

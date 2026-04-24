@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuración · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:800px){ .config-grid { grid-template-columns:1fr; } }
+
+    .config-card {
+      background: var(--blanco);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      box-shadow: var(--sombra);
+      overflow: hidden;
+    }
+    .config-card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--gris6);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .config-card-title { font-size: 14px; font-weight: 700; color: var(--gris1); }
+    .config-card-sub { font-size: 12px; color: var(--gris4); margin-top: 2px; }
+    .config-card-body { padding: 20px; }
+
+    /* Comisiones */
+    .comision-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--gris7);
+      gap: 16px;
+    }
+    .comision-row:last-child { border-bottom: none; }
+    .comision-info { flex: 1; }
+    .comision-label { font-size: 13px; font-weight: 600; color: var(--gris1); }
+    .comision-desc  { font-size: 11px; color: var(--gris4); margin-top: 2px; }
+    .comision-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .comision-input-wrap input {
+      width: 80px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 700;
+      padding: 8px 10px;
+    }
+    .comision-pct { font-size: 14px; font-weight: 700; color: var(--gris3); }
+    .comision-preview {
+      font-size: 11px;
+      color: var(--gris4);
+      margin-top: 6px;
+      font-family: var(--mono);
+    }
+
+    .btn-guardar-com {
+      width: 100%;
+      margin-top: 16px;
+    }
+
+    .alert-guardado {
+      display: none;
+      margin-top: 12px;
+    }
+
+    /* Buscador CTG */
+    .ctg-resultado {
+      margin-top: 16px;
+    }
+    .ctg-card-resultado {
+      background: var(--gris8);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .ctg-card-resultado.ok    { border-color: #86efac; background: #f0fdf4; }
+    .ctg-card-resultado.error { border-color: #fca5a5; background: #fff1f2; }
+
+    .ctg-campo {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px dashed var(--gris6);
+      font-size: 13px;
+    }
+    .ctg-campo:last-child { border-bottom: none; }
+    .ctg-campo-label { color: var(--gris4); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .ctg-campo-valor { font-weight: 600; color: var(--gris1); font-family: var(--mono); }
+    .ctg-campo-valor.normal { font-family: var(--sans); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <a href="reportes.html"><span class="nav-icon">📑</span> Reportes</a>
+  <a href="recibo.html"><span class="nav-icon">🖨️</span> Recibo</a>
+  <a href="config.html" class="active"><span class="nav-icon">⚙️</span> Config</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">⚙️ Configuración</div>
+      <div class="page-sub">Porcentajes de comisiones y buscador de CTG</div>
+    </div>
+  </div>
+
+  <div class="config-grid">
+
+    <!-- ── COMISIONES ─────────────────────────────────── -->
+    <div class="config-card">
+      <div class="config-card-header">
+        <div>
+          <div class="config-card-title">📊 Porcentajes de Comisiones</div>
+          <div class="config-card-sub">Se aplican automáticamente a los viajes nuevos que cargues</div>
+        </div>
+      </div>
+      <div class="config-card-body">
+
+        <div class="comision-row">
+          <div class="comision-info">
+            <div class="comision-label">Comisión — Socio ✅</div>
+            <div class="comision-desc">Se aplica cuando SOCIO = SI</div>
+            <div class="comision-preview" id="prev-socio">Ej: $1.000.000 × 6% = $60.000</div>
+          </div>
+          <div>
+            <div class="comision-input-wrap">
+              <input type="number" id="pct-socio" min="0" max="100" step="0.1" oninput="actualizarPreview()">
+              <span class="comision-pct">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="comision-row">
+          <div class="comision-info">
+            <div class="comision-label">Comisión — No Socio ❌</div>
+            <div class="comision-desc">Se aplica cuando SOCIO = NO</div>
+            <div class="comision-preview" id="prev-nosocio">Ej: $1.000.000 × 10% = $100.000</div>
+          </div>
+          <div>
+            <div class="comision-input-wrap">
+              <input type="number" id="pct-nosocio" min="0" max="100" step="0.1" oninput="actualizarPreview()">
+              <span class="comision-pct">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="comision-row">
+          <div class="comision-info">
+            <div class="comision-label">Comisión Matías</div>
+            <div class="comision-desc">Sobre importe sin IVA, solo viajes con factura</div>
+            <div class="comision-preview" id="prev-matias">Ej: $1.000.000 × 1.5% = $15.000</div>
+          </div>
+          <div>
+            <div class="comision-input-wrap">
+              <input type="number" id="pct-matias" min="0" max="100" step="0.01" oninput="actualizarPreview()">
+              <span class="comision-pct">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert success alert-guardado" id="alert-guardado">
+          ✅ Porcentajes guardados. Se aplicarán a los viajes nuevos.
+        </div>
+        <div class="alert warning" style="margin-top:12px;display:flex">
+          ⚠️ Los viajes ya cargados no se recalculan automáticamente. Para actualizarlos, editá cada uno y volvé a guardar.
+        </div>
+
+        <button class="btn btn-primary btn-guardar-com" onclick="guardarComisiones()">
+          💾 Guardar porcentajes
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ── BUSCADOR CTG ────────────────────────────────── -->
+    <div class="config-card">
+      <div class="config-card-header">
+        <div>
+          <div class="config-card-title">🔍 Buscador de CTG</div>
+          <div class="config-card-sub">Ingresá un CTG y ves a qué viaje pertenece</div>
+        </div>
+      </div>
+      <div class="config-card-body">
+
+        <div class="form-group">
+          <label>Número de CTG</label>
+          <input type="text" id="input-ctg" placeholder="Escribí el CTG..." oninput="buscarCTG()">
+        </div>
+
+        <div class="ctg-resultado" id="ctg-resultado">
+          <div style="text-align:center;padding:30px;color:var(--gris5)">
+            <div style="font-size:32px;margin-bottom:8px">🔍</div>
+            <div>Ingresá un CTG para buscarlo</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="../js/nav.js"></script>
+<script>
+  const CONFIG_KEY = 'coop_config_v1';
+
+  // ── Cargar config guardada ─────────────────────────
+  function cargarConfig() {
+    try {
+      const raw = localStorage.getItem(CONFIG_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { pctSocio: 6, pctNoSocio: 10, pctMatias: 1.5 };
+  }
+
+  function guardarConfig(cfg) {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  }
+
+  // Exponer globalmente para que nav.js lo use al calcular
+  window.getConfig = cargarConfig;
+
+  // ── Inicializar valores en inputs ──────────────────
+  window.addEventListener('auth-ready', () => {
+    const cfg = cargarConfig();
+    document.getElementById('pct-socio').value   = cfg.pctSocio;
+    document.getElementById('pct-nosocio').value = cfg.pctNoSocio;
+    document.getElementById('pct-matias').value  = cfg.pctMatias;
+    actualizarPreview();
+  });
+
+  function actualizarPreview() {
+    const socio   = parseFloat(document.getElementById('pct-socio').value)   || 0;
+    const nosocio = parseFloat(document.getElementById('pct-nosocio').value) || 0;
+    const matias  = parseFloat(document.getElementById('pct-matias').value)  || 0;
+    const base = 1000000;
+    document.getElementById('prev-socio').textContent =
+      `Ej: $1.000.000 × ${socio}% = $${fmt(base * socio / 100)}`;
+    document.getElementById('prev-nosocio').textContent =
+      `Ej: $1.000.000 × ${nosocio}% = $${fmt(base * nosocio / 100)}`;
+    document.getElementById('prev-matias').textContent =
+      `Ej: $1.000.000 × ${matias}% = $${fmt(base * matias / 100)}`;
+  }
+
+  function guardarComisiones() {
+    const cfg = {
+      pctSocio:   parseFloat(document.getElementById('pct-socio').value)   || 6,
+      pctNoSocio: parseFloat(document.getElementById('pct-nosocio').value) || 10,
+      pctMatias:  parseFloat(document.getElementById('pct-matias').value)  || 1.5,
+    };
+    guardarConfig(cfg);
+    const al = document.getElementById('alert-guardado');
+    al.style.display = 'flex';
+    setTimeout(() => al.style.display = 'none', 3000);
+  }
+
+  // ── Buscador CTG ───────────────────────────────────
+  let todosLosViajes = [];
+  window.addEventListener('auth-ready', async () => {
+    todosLosViajes = await DB.Viajes.getAll();
+  });
+
+  async function buscarCTG() {
+    const q = document.getElementById('input-ctg').value.trim();
+    const panel = document.getElementById('ctg-resultado');
+
+    if (!q) {
+      panel.innerHTML = `<div style="text-align:center;padding:30px;color:var(--gris5)">
+        <div style="font-size:32px;margin-bottom:8px">🔍</div>
+        <div>Ingresá un CTG para buscarlo</div></div>`;
+      return;
+    }
+
+    // Buscar coincidencias parciales
+    const resultados = todosLosViajes.filter(v =>
+      v.ctg && String(v.ctg).toLowerCase().includes(q.toLowerCase())
+    );
+
+    if (resultados.length === 0) {
+      panel.innerHTML = `<div class="ctg-card-resultado error">
+        <div style="font-size:13px;font-weight:600;color:var(--rojo2);margin-bottom:4px">⚠️ CTG no encontrado</div>
+        <div style="font-size:12px;color:var(--gris4)">No hay ningún viaje con CTG "${q}" en el sistema.</div>
+      </div>`;
+      return;
+    }
+
+    panel.innerHTML = resultados.map(v => `
+      <div class="ctg-card-resultado ok" style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--verde2);margin-bottom:10px">
+          ✅ CTG ${v.ctg} — Viaje encontrado
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Fletero</span>
+          <span class="ctg-campo-valor normal">${v.fletero}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Cliente</span>
+          <span class="ctg-campo-valor normal">${v.cliente}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Factura</span>
+          <span class="ctg-campo-valor">${v.factura || '— sin factura'}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Fecha</span>
+          <span class="ctg-campo-valor">${fmtFecha(v.fecha)}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Origen → Destino</span>
+          <span class="ctg-campo-valor normal">${v.origen || '—'} → ${v.destino || '—'}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">KG</span>
+          <span class="ctg-campo-valor">${fmt(v.kg)}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Importe + IVA</span>
+          <span class="ctg-campo-valor">$${fmt(v.importeIVA)}</span>
+        </div>
+        <div class="ctg-campo">
+          <span class="ctg-campo-label">Liquidado</span>
+          <span class="ctg-campo-valor normal">
+            ${v.liquidado
+              ? '<span class="pill verde">✅ Sí</span>'
+              : '<span class="pill amarillo">⏳ Pendiente</span>'}
+          </span>
+        </div>
+      </div>
+    `).join('');
+  }
+</script>
+</body>
+</html>
