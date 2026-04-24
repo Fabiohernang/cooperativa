@@ -295,7 +295,7 @@
 
   async function renderChart() {
     const facturas = await DB.Facturas.getAll();
-    const pagos    = DB.Pagos.getAll();
+    const pagos    = await DB.Pagos.getAll();
     const ahora = new Date();
     const meses = [];
     for (let i = 5; i >= 0; i--) {
