@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc,
-  doc, getDocs, query, orderBy, where, serverTimestamp
+  doc, getDocs, query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -62,8 +62,8 @@ window.doLogout = async () => {
 window.DB = {
   Viajes: {
     async getAll() {
-      const snap = await getDocs(query(collection(db,'viajes'), orderBy('fecha','desc')));
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(collection(db,'viajes'));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.fecha||'') > (a.fecha||'') ? 1 : -1);
     },
     async getByFactura(nro) {
       const snap = await getDocs(query(collection(db,'viajes'), where('factura','==',String(nro))));
@@ -74,10 +74,14 @@ window.DB = {
       return all.filter(v => v.fletero.toLowerCase().includes(nombre.toLowerCase()));
     },
     _calc(data) {
+      const cfg = (() => { try { return JSON.parse(localStorage.getItem('coop_config_v1')) || {}; } catch { return {}; } })();
+      const pctSocio   = (cfg.pctSocio   ?? 6)   / 100;
+      const pctNoSocio = (cfg.pctNoSocio ?? 10)  / 100;
+      const pctMatias  = (cfg.pctMatias  ?? 1.5) / 100;
       const imp = (parseFloat(data.tarifa)||0)*(parseFloat(data.kg)||0);
       const iva = +(imp*1.21).toFixed(6);
-      const com = +(iva*(data.socio==='SI'?0.06:0.10)).toFixed(6);
-      const mat = data.factura ? +(imp*0.015).toFixed(6) : 0;
+      const com = +(iva*(data.socio==='SI'?pctSocio:pctNoSocio)).toFixed(6);
+      const mat = data.factura ? +(imp*pctMatias).toFixed(6) : 0;
       return { importe:+imp.toFixed(6), importeIVA:iva, comision:com, comisionMat:mat };
     },
     async add(data) {
@@ -107,8 +111,8 @@ window.DB = {
 
   Facturas: {
     async getAll() {
-      const snap = await getDocs(query(collection(db,'facturas'), orderBy('fechaEmis','desc')));
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(collection(db,'facturas'));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.fechaEmis||'') > (a.fechaEmis||'') ? 1 : -1);
     },
     _calc(data) {
       const s=parseFloat(data.saldo)||0, p=parseFloat(data.pago)||0, r=parseFloat(data.retenciones)||0;
@@ -137,8 +141,8 @@ window.DB = {
 
   Pagos: {
     async getAll() {
-      const snap = await getDocs(query(collection(db,'pagos'), orderBy('fechaOP','desc')));
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(collection(db,'pagos'));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.fechaOP||'') > (a.fechaOP||'') ? 1 : -1);
     },
     async getByFletero(nombre) {
       const all = await this.getAll();
