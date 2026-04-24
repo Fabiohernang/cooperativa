@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recibo Fletero · Cooperativa</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    @media print {
+      nav, .no-print { display: none !important; }
+      .page { padding: 0; max-width: 100%; }
+      .recibo { box-shadow: none; border: 1px solid #ccc; }
+      body { background: white; }
+    }
+
+    .buscador-card {
+      background: var(--blanco);
+      border: 1px solid var(--gris6);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    /* ── RECIBO ──────────────────────────────────────── */
+    .recibo {
+      background: var(--blanco);
+      border: 2px solid var(--gris6);
+      border-radius: 8px;
+      max-width: 680px;
+      margin: 0 auto;
+      box-shadow: var(--sombra2);
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    .recibo-header {
+      background: var(--gris1);
+      color: var(--blanco);
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .recibo-empresa {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .recibo-empresa span {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--gris5);
+      margin-top: 2px;
+    }
+    .recibo-titulo {
+      text-align: right;
+    }
+    .recibo-titulo .tag {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--gris5);
+    }
+    .recibo-titulo .nro {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--acento);
+    }
+
+    .recibo-datos {
+      padding: 18px 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      border-bottom: 1px solid var(--gris6);
+      background: var(--gris8);
+    }
+    .dato-item { }
+    .dato-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--gris4);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .dato-valor {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gris1);
+    }
+
+    .recibo-seccion {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--gris6);
+    }
+    .recibo-seccion-titulo {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--gris4);
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--gris6);
+    }
+
+    .linea-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px dashed var(--gris7);
+    }
+    .linea-item:last-child { border-bottom: none; }
+    .linea-desc { color: var(--gris2); }
+    .linea-desc .sub { font-size: 11px; color: var(--gris4); margin-top: 1px; }
+    .linea-monto {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: right;
+    }
+    .linea-monto.positivo { color: var(--gris1); }
+    .linea-monto.negativo { color: var(--rojo2); }
+
+    .total-descuentos {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0 0;
+      margin-top: 8px;
+      border-top: 2px solid var(--gris6);
+    }
+    .total-descuentos .label { font-weight: 700; font-size: 13px; }
+    .total-descuentos .monto { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--rojo2); }
+
+    .recibo-total {
+      background: var(--gris1);
+      padding: 18px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-label { color: var(--gris5); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    .total-monto { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--acento); }
+
+    .recibo-pagos {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--gris6);
+    }
+    .pago-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+      background: var(--gris8);
+      border: 1px solid var(--gris6);
+    }
+    .pago-tipo { font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    .pago-detalle { font-size: 11px; color: var(--gris4); font-family: var(--mono); }
+    .pago-monto { font-family: var(--mono); font-weight: 700; color: var(--verde2); }
+
+    .recibo-firma {
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+    .firma-box {
+      text-align: center;
+    }
+    .firma-linea {
+      border-top: 1px solid var(--gris3);
+      margin-bottom: 6px;
+      margin-top: 40px;
+    }
+    .firma-label { font-size: 11px; color: var(--gris4); text-transform: uppercase; letter-spacing: .05em; }
+    .firma-nombre { font-size: 12px; font-weight: 600; color: var(--gris2); margin-top: 2px; }
+
+    .empty-recibo {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--gris5);
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .empty-recibo .icon { font-size: 48px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🚛 COOP<span>/transport</span></div>
+  <a href="../index.html"><span class="nav-icon">📊</span> Dashboard</a>
+  <a href="viajes.html"><span class="nav-icon">📋</span> Viajes</a>
+  <a href="facturas.html"><span class="nav-icon">🧾</span> Facturas</a>
+  <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
+  <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
+  <a href="analisis.html"><span class="nav-icon">📈</span> Análisis</a>
+  <a href="recibo.html" class="active"><span class="nav-icon">🖨️</span> Recibo</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
+</nav>
+
+<div class="page">
+  <div class="page-header no-print">
+    <div>
+      <div class="page-title">🖨️ Recibo de Liquidación</div>
+      <div class="page-sub">Comprobante de pago para entregar al fletero</div>
+    </div>
+  </div>
+
+  <!-- Buscador -->
+  <div class="buscador-card no-print">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="min-width:220px;margin:0">
+        <label>Buscar por Fletero o Nro. Orden</label>
+        <input type="text" id="input-buscar" placeholder="Escribí el nombre del fletero..." oninput="buscar()">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>&nbsp;</label>
+        <select id="select-op" onchange="seleccionarOP()" style="min-width:280px">
+          <option value="">— Seleccioná una orden de pago —</option>
+        </select>
+      </div>
+      <button class="btn btn-primary no-print" onclick="imprimir()" id="btn-imprimir" style="display:none">
+        🖨️ Imprimir / Guardar PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Recibo -->
+  <div id="panel-recibo">
+    <div class="empty-recibo">
+      <div class="icon">🖨️</div>
+      <p>Buscá un fletero y seleccioná la orden de pago para generar el recibo</p>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="../js/nav.js"></script>
+<script>
+  let todasLasOP = [];
+
+  window.addEventListener('auth-ready', async () => {
+    todasLasOP = await DB.Pagos.getAll();
+  });
+
+  function buscar() {
+    const q = document.getElementById('input-buscar').value.trim().toLowerCase();
+    const sel = document.getElementById('select-op');
+    sel.innerHTML = '<option value="">— Seleccioná una orden de pago —</option>';
+    document.getElementById('btn-imprimir').style.display = 'none';
+
+    if (!q) {
+      document.getElementById('panel-recibo').innerHTML = `
+        <div class="empty-recibo"><div class="icon">🖨️</div><p>Buscá un fletero para empezar</p></div>`;
+      return;
+    }
+
+    const filtradas = todasLasOP.filter(p => p.fletero.toLowerCase().includes(q));
+    if (filtradas.length === 0) {
+      sel.innerHTML = '<option value="">Sin resultados</option>';
+      return;
+    }
+    filtradas.forEach(p => {
+      const op = document.createElement('option');
+      op.value = p.id;
+      op.textContent = `OP ${p.nroOrden} · ${p.fletero} · Fact. ${p.factura||'—'} · $${fmt(p.impPagado)}`;
+      sel.appendChild(op);
+    });
+
+    // Si solo hay una, seleccionarla automáticamente
+    if (filtradas.length === 1) {
+      sel.value = filtradas[0].id;
+      seleccionarOP();
+    }
+  }
+
+  function seleccionarOP() {
+    const id = document.getElementById('select-op').value;
+    if (!id) {
+      document.getElementById('panel-recibo').innerHTML = `
+        <div class="empty-recibo"><div class="icon">🖨️</div><p>Seleccioná una orden de pago</p></div>`;
+      document.getElementById('btn-imprimir').style.display = 'none';
+      return;
+    }
+    const p = todasLasOP.find(x => x.id === id);
+    if (!p) return;
+    renderRecibo(p);
+    document.getElementById('btn-imprimir').style.display = 'flex';
+  }
+
+  function renderRecibo(p) {
+    const descuentos = [
+      { label: 'Comisión', sub: p.socio === 'SI' ? '6% + IVA (Socio)' : '10% + IVA', monto: p.comision },
+      { label: 'Cuota Socio', sub: '', monto: p.cuota },
+      { label: 'Seguros', sub: '', monto: p.seguros },
+      { label: 'Adelanto Fletero', sub: '', monto: p.adelantos },
+      { label: 'Combustible', sub: '', monto: p.combustible },
+      { label: 'Percepciones / Recup. Comb.', sub: '', monto: p.percepciones },
+      { label: p.detalleOtro || 'Otro', sub: '', monto: p.otro },
+    ].filter(d => d.monto && d.monto > 0);
+
+    const totalDesc = descuentos.reduce((a, d) => a + (d.monto || 0), 0);
+
+    // Forma de pago — construir líneas
+    const pagos = [];
+    if (p.medioPago && p.impPagado > 0) {
+      const esCheque = ['CHEQUE','ECHEQ'].includes((p.medioPago||'').toUpperCase());
+      pagos.push({
+        tipo: p.medioPago,
+        icono: esCheque ? '🏦' : '💳',
+        detalle: p.nroCheq ? `Nro. ${p.nroCheq}` : (p.fechaCobro ? `Fecha: ${fmtFecha(p.fechaCobro)}` : ''),
+        monto: p.impPagado
+      });
+    }
+
+    // Si hay retenciones, mostrarlas aparte
+    const montoConRetenciones = p.impAPagar;
+
+    document.getElementById('panel-recibo').innerHTML = `
+      <div class="recibo">
+
+        <!-- Header -->
+        <div class="recibo-header">
+          <div class="recibo-empresa">
+            🚛 Cooperativa de Transporte
+            <span>Liquidación de Viajes</span>
+          </div>
+          <div class="recibo-titulo">
+            <div class="tag">Orden de Pago</div>
+            <div class="nro">#${p.nroOrden}</div>
+            <div style="font-size:11px;color:var(--gris5);margin-top:4px">${fmtFecha(p.fechaOP)}</div>
+          </div>
+        </div>
+
+        <!-- Datos fletero -->
+        <div class="recibo-datos">
+          <div class="dato-item">
+            <div class="dato-label">Fletero</div>
+            <div class="dato-valor">${p.fletero}</div>
+          </div>
+          <div class="dato-item">
+            <div class="dato-label">Factura</div>
+            <div class="dato-valor">${p.factura ? 'Factura A ' + p.factura : '—'}</div>
+          </div>
+          <div class="dato-item">
+            <div class="dato-label">Fecha Factura</div>
+            <div class="dato-valor">${fmtFecha(p.fechaFact)}</div>
+          </div>
+          <div class="dato-item">
+            <div class="dato-label">Fecha Orden de Pago</div>
+            <div class="dato-valor">${fmtFecha(p.fechaOP)}</div>
+          </div>
+        </div>
+
+        <!-- A Pagar -->
+        <div class="recibo-seccion">
+          <div class="recibo-seccion-titulo">A Pagar</div>
+          <div class="linea-item">
+            <div class="linea-desc">
+              Importe Factura${p.factura ? ' A ' + p.factura : ''}
+            </div>
+            <div class="linea-monto positivo">$${fmt(p.impFactura)}</div>
+          </div>
+        </div>
+
+        <!-- Descuentos -->
+        <div class="recibo-seccion">
+          <div class="recibo-seccion-titulo">A Descontar</div>
+          ${descuentos.map(d => `
+            <div class="linea-item">
+              <div class="linea-desc">
+                ${d.label}
+                ${d.sub ? `<div class="sub">${d.sub}</div>` : ''}
+              </div>
+              <div class="linea-monto negativo">− $${fmt(d.monto)}</div>
+            </div>
+          `).join('')}
+          ${p.retenciones > 0 ? `
+            <div class="linea-item">
+              <div class="linea-desc">Retenciones Ingresos Brutos</div>
+              <div class="linea-monto negativo">− $${fmt(p.retenciones)}</div>
+            </div>
+          ` : ''}
+          <div class="total-descuentos">
+            <div class="label">Total descuentos</div>
+            <div class="monto">− $${fmt(totalDesc + (p.retenciones||0))}</div>
+          </div>
+        </div>
+
+        <!-- Total a pagar -->
+        <div class="recibo-total">
+          <div class="total-label">Total a Pagar</div>
+          <div class="total-monto">$${fmt(p.impAPagar)}</div>
+        </div>
+
+        <!-- Forma de pago -->
+        ${pagos.length > 0 || p.observaciones ? `
+        <div class="recibo-pagos">
+          <div class="recibo-seccion-titulo" style="margin-bottom:12px">Forma de Pago</div>
+          ${pagos.map(pg => `
+            <div class="pago-row">
+              <div>
+                <div class="pago-tipo">${pg.icono} ${pg.tipo}</div>
+                ${pg.detalle ? `<div class="pago-detalle">${pg.detalle}</div>` : ''}
+              </div>
+              <div class="pago-monto">$${fmt(pg.monto)}</div>
+            </div>
+          `).join('')}
+          ${p.observaciones ? `
+            <div style="margin-top:10px;font-size:12px;color:var(--gris4)">
+              <strong>Obs.:</strong> ${p.observaciones}
+            </div>
+          ` : ''}
+        </div>
+        ` : ''}
+
+        <!-- Firmas -->
+        <div class="recibo-firma">
+          <div class="firma-box">
+            <div class="firma-linea"></div>
+            <div class="firma-label">Recibí en conformidad</div>
+            <div class="firma-nombre">${p.fletero}</div>
+          </div>
+          <div class="firma-box">
+            <div class="firma-linea"></div>
+            <div class="firma-label">Cooperativa de Transporte</div>
+            <div class="firma-nombre">Responsable</div>
+          </div>
+        </div>
+
+      </div>
+    `;
+  }
+
+  function imprimir() {
+    window.print();
+  }
+</script>
+</body>
+</html>
