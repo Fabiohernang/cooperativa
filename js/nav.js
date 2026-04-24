@@ -77,7 +77,7 @@ window.DB = {
       const imp = (parseFloat(data.tarifa)||0)*(parseFloat(data.kg)||0);
       const iva = +(imp*1.21).toFixed(6);
       const com = +(iva*(data.socio==='SI'?0.06:0.10)).toFixed(6);
-      const mat = data.factura ? +(iva*0.015).toFixed(6) : 0;
+      const mat = data.factura ? +(imp*0.015).toFixed(6) : 0;
       return { importe:+imp.toFixed(6), importeIVA:iva, comision:com, comisionMat:mat };
     },
     async add(data) {
