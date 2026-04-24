@@ -223,13 +223,14 @@
       </tr>`;
   }
 
-  function abrirModal(id=null) {
+  async function abrirModal(id=null) {
     editandoId=id;
     document.getElementById('modal-error').style.display='none';
     document.getElementById('modal-titulo').textContent = id ? 'Editar Orden' : 'Nueva Orden de Pago';
     const zeros = ['f-com','f-cuota','f-seguros','f-adelantos','f-comb','f-percep','f-otro','f-ret'];
     if (id) {
-      const p = DB.Pagos.getAll().find(x=>x.id===id);
+      const todos = await DB.Pagos.getAll();
+      const p = todos.find(x=>x.id===id);
       document.getElementById('f-nroop').value    = p.nroOrden;
       document.getElementById('f-fechaop').value  = p.fechaOP;
       document.getElementById('f-fletero').value  = p.fletero;

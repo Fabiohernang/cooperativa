@@ -193,12 +193,13 @@
   document.getElementById('f-socio').addEventListener('change', calcularPreview);
   document.getElementById('f-factura').addEventListener('input', calcularPreview);
 
-  function abrirModal(id = null) {
+  async function abrirModal(id = null) {
     editandoId = id;
     document.getElementById('modal-error').style.display = 'none';
     document.getElementById('modal-titulo').textContent = id ? 'Editar Viaje' : 'Nuevo Viaje';
     if (id) {
-      const v = DB.Viajes.getAll().find(v => v.id === id);
+      const todos = await DB.Viajes.getAll();
+      const v = todos.find(v => v.id === id);
       document.getElementById('f-fecha').value    = v.fecha;
       document.getElementById('f-cliente').value  = v.cliente;
       document.getElementById('f-factura').value  = v.factura;

@@ -243,12 +243,13 @@
     `;
   }
 
-  function abrirModal(id = null) {
+  async function abrirModal(id = null) {
     editandoId = id;
     document.getElementById('modal-error').style.display = 'none';
     document.getElementById('modal-titulo').textContent = id ? 'Editar Factura' : 'Nueva Factura';
     if (id) {
-      const f = DB.Facturas.getAll().find(x => x.id === id);
+      const todos = await DB.Facturas.getAll();
+      const f = todos.find(x => x.id === id);
       document.getElementById('f-nro').value     = f.nro;
       document.getElementById('f-cliente').value = f.cliente;
       document.getElementById('f-emis').value    = f.fechaEmis;
