@@ -128,6 +128,9 @@
   <a href="pagos.html"><span class="nav-icon">💸</span> Pagos</a>
   <a href="conciliacion.html"><span class="nav-icon">✅</span> Conciliación</a>
   <a href="analisis.html" class="active"><span class="nav-icon">📈</span> Análisis</a>
+  <a href="reportes.html"><span class="nav-icon">📑</span> Reportes</a>
+  <a href="recibo.html"><span class="nav-icon">🖨️</span> Recibo</a>
+  <a href="config.html"><span class="nav-icon">⚙️</span> Config</a>
   <div class="nav-spacer"></div>
   <div class="nav-user-btn"><span id="nav-user">…</span><button class="btn-logout" onclick="doLogout()" title="Salir">⏻</button></div>
 </nav>
@@ -430,10 +433,11 @@
   }
 
   window.addEventListener('auth-ready', async () => {
+    document.getElementById('kpis-main').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gris4)">⏳ Cargando análisis...</div>';
     await renderKPIs();
     await renderDescuentos();
     await renderClientes();
-    renderChart();
+    await renderChart();
   });
 </script>
 </body>

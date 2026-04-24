@@ -296,7 +296,11 @@
     await DB.Pagos.delete(id); renderTabla(); renderKPIs();
   }
 
-  window.addEventListener('auth-ready', () => { renderKPIs(); renderTabla(); });
+  window.addEventListener('auth-ready', async () => {
+    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="17"><div style="text-align:center;padding:30px;color:var(--gris4)">⏳ Cargando órdenes de pago...</div></td></tr>';
+    await renderKPIs();
+    await renderTabla();
+  });
 </script>
 </body>
 </html>

@@ -351,9 +351,10 @@
     `;
   }
 
-  window.addEventListener('auth-ready', () => {
-    renderKPIs();
-    renderTabla();
+  window.addEventListener('auth-ready', async () => {
+    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="15"><div class="loading" style="text-align:center;padding:30px;color:var(--gris4)">⏳ Cargando viajes...</div></td></tr>';
+    await renderKPIs();
+    await renderTabla();
   });
 </script>
 </body>

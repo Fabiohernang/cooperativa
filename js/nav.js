@@ -50,6 +50,10 @@ onAuthStateChanged(auth, user => {
   const navFecha = document.getElementById('nav-fecha');
   if (navFecha) navFecha.textContent = new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
 
+  // Nombre en nav
+  const navFecha2 = document.getElementById('nav-fecha');
+  if (navFecha2) navFecha2.textContent = new Date().toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'});
+
   window.dispatchEvent(new CustomEvent('auth-ready', { detail: { user } }));
 });
 
