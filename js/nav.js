@@ -90,8 +90,9 @@ window.DB = {
     },
     async add(data) {
       if (data.ctg) {
-        const ex = await getDocs(query(collection(db,'viajes'), where('ctg','==',String(data.ctg))));
-        if (!ex.empty) throw new Error(`CTG ${data.ctg} ya existe en otro viaje.`);
+        const todosV = await getDocs(collection(db,'viajes'));
+        const ctgExiste = todosV.docs.find(d => d.data().ctg === String(data.ctg));
+        if (ctgExiste) throw new Error(`CTG ${data.ctg} ya existe en otro viaje.`);
       }
       const v = { id_viaje: Date.now(), fecha:data.fecha, cliente:data.cliente, factura:data.factura||'',
         fletero:data.fletero, socio:data.socio==='SI'?'SI':'NO', ctg:data.ctg||'',
@@ -123,8 +124,10 @@ window.DB = {
       return { restante:+(s-p-r).toFixed(2), vencida:!!((!data.pagada&&!data.anulada&&data.fechaVenc&&data.fechaVenc<window.hoy())) };
     },
     async add(data) {
-      const ex = await getDocs(query(collection(db,'facturas'), where('nro','==',String(data.nro))));
-      if (!ex.empty) throw new Error(`Factura ${data.nro} ya existe.`);
+      // Validación de duplicado simplificada (sin query compleja)
+      const todos = await getDocs(collection(db,'facturas'));
+      const existe = todos.docs.find(d => d.data().nro === String(data.nro));
+      if (existe) throw new Error(`Factura ${data.nro} ya existe.`);
       const f = { nro:String(data.nro), cliente:data.cliente, fechaEmis:data.fechaEmis,
         fechaVenc:data.fechaVenc||'', saldo:parseFloat(data.saldo)||0, pago:parseFloat(data.pago)||0,
         retenciones:parseFloat(data.retenciones)||0, fechaPago:data.fechaPago||'',

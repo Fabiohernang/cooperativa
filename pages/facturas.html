@@ -93,10 +93,17 @@
         </div>
         <div class="form-group">
           <label>Fecha Emisión *</label>
-          <input type="date" id="f-emis">
+          <input type="date" id="f-emis" oninput="calcVencimiento()">
         </div>
         <div class="form-group">
-          <label>Fecha Vencimiento</label>
+          <label>Días hasta vencimiento</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="number" id="f-dias-venc" value="20" min="1" max="365" style="width:80px" oninput="calcVencimiento()">
+            <button type="button" onclick="calcVencimiento()" class="btn btn-ghost btn-sm">Calcular</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fecha Vencimiento (auto)</label>
           <input type="date" id="f-venc">
         </div>
         <div class="form-group">
@@ -151,6 +158,15 @@
   const HOY = hoy();
 
 
+  function calcVencimiento() {
+    const emis = document.getElementById('f-emis').value;
+    const dias = parseInt(document.getElementById('f-dias-venc').value) || 20;
+    if (!emis) return;
+    const fecha = new Date(emis);
+    fecha.setDate(fecha.getDate() + dias);
+    document.getElementById('f-venc').value = fecha.toISOString().slice(0,10);
+  }
+
   function calcRestante() {
     const saldo = parseFloat(document.getElementById('f-saldo').value) || 0;
     const pago  = parseFloat(document.getElementById('f-pago').value)  || 0;
@@ -167,7 +183,7 @@
   }
 
   async function renderKPIs() {
-    const all = await DB.Facturas.getAll();
+    const all = await DB.Facturas.getAll().catch(e => { console.error('getAll KPIs error:', e); return []; });
     const pend   = all.filter(f => !f.pagada && !f.anulada);
     const venc   = all.filter(f => !f.pagada && !f.anulada && f.fechaVenc && f.fechaVenc < HOY);
     const totalPend = pend.reduce((a,f)=>a+(f.restante||0),0);
@@ -183,11 +199,19 @@
   }
 
   async function renderTabla() {
+    let datos = [];
+    try {
+      datos = await DB.Facturas.getAll();
+    } catch(e) {
+      console.error('Error getAll facturas:', e);
+      document.getElementById('tabla-body').innerHTML = '<tr><td colspan="13"><div style="text-align:center;padding:30px;color:var(--rojo2)">⚠️ Error Firebase: ' + e.message + '</div></td></tr>';
+      return;
+    }
     const filtCli   = document.getElementById('filtro-cliente').value.toLowerCase();
     const filtNro   = document.getElementById('filtro-nro').value.toLowerCase();
     const filtEstado= document.getElementById('filtro-estado').value;
 
-    let datos = await DB.Facturas.getAll();
+    // datos ya cargados arriba con try/catch
     if (filtCli)  datos = datos.filter(f => f.cliente.toLowerCase().includes(filtCli));
     if (filtNro)  datos = datos.filter(f => String(f.nro).includes(filtNro));
     if (filtEstado === 'pendiente') datos = datos.filter(f => !f.pagada && !f.anulada && !(f.fechaVenc && f.fechaVenc < HOY));
@@ -270,9 +294,10 @@
       document.getElementById('f-emis').value  = HOY;
       document.getElementById('f-pago').value  = '0';
       document.getElementById('f-ret').value   = '0';
-      document.getElementById('f-venc').value  = '';
       document.getElementById('f-fpago').value = '';
       document.getElementById('f-pagada').value= 'no';
+      document.getElementById('f-dias-venc').value = '20';
+      calcVencimiento();
     }
     calcRestante();
     document.getElementById('modal-overlay').classList.add('open');
@@ -298,15 +323,17 @@
       pagada: estado === 'si',
       anulada: estado === 'anul',
     };
-    if (!data.nro || !data.cliente || !data.fechaEmis || !data.saldo) {
+    if (!data.nro || !data.cliente || !data.fechaEmis || data.saldo === '' || data.saldo === undefined) {
       const el = document.getElementById('modal-error');
       el.textContent = '⚠️ Completá Nro., Cliente, Fecha Emisión y Saldo.';
       el.style.display = 'flex'; return;
     }
     try {
+      console.log('Guardando factura:', data);
       if (editandoId) await DB.Facturas.update(editandoId, data);
       else await DB.Facturas.add(data);
-      cerrarModal(); renderTabla(); renderKPIs();
+      console.log('Factura guardada OK');
+      cerrarModal(); await renderTabla(); await renderKPIs();
     } catch(e) {
       const el = document.getElementById('modal-error');
       el.textContent = '⚠️ ' + e.message; el.style.display = 'flex';
@@ -320,8 +347,13 @@
 
   window.addEventListener('auth-ready', async () => {
     document.getElementById('tabla-body').innerHTML = '<tr><td colspan="13"><div style="text-align:center;padding:30px;color:var(--gris4)">⏳ Cargando facturas...</div></td></tr>';
-    await renderKPIs();
-    await renderTabla();
+    try {
+      await renderKPIs();
+      await renderTabla();
+    } catch(e) {
+      console.error('Error cargando facturas:', e);
+      document.getElementById('tabla-body').innerHTML = '<tr><td colspan="13"><div style="text-align:center;padding:30px;color:var(--rojo2)">⚠️ Error al cargar: ' + e.message + '</div></td></tr>';
+    }
   });
 </script>
 </body>
