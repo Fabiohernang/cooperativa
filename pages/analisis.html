@@ -187,8 +187,9 @@
       <div style="font-size:12px;color:var(--gris4)">Todos los viajes y pagos de un fletero</div>
     </div>
     <div class="card-body">
+      <datalist id="dl-fleteros-anal"></datalist>
       <div class="filter-bar" style="margin-bottom:12px">
-        <input type="text" id="input-fletero" placeholder="Escribí el nombre del fletero..." oninput="buscarFletero()" style="width:300px">
+        <input type="text" id="input-fletero" list="dl-fleteros-anal" placeholder="Escribí el nombre del fletero..." autocomplete="off" oninput="buscarFletero()" style="width:300px">
       </div>
       <div id="panel-fletero">
         <div class="empty-state"><div class="icon">🔍</div><p>Ingresá un nombre para buscar</p></div>
@@ -436,12 +437,20 @@
     `;
   }
 
+
+  async function llenarDataListsAnal() {
+    const todos = await DB.Viajes.getAll();
+    const fleteros = [...new Set(todos.map(v => v.fletero).filter(Boolean))].sort();
+    document.getElementById('dl-fleteros-anal').innerHTML = fleteros.map(f => `<option value="${f}">`).join('');
+  }
+
   window.addEventListener('auth-ready', async () => {
     document.getElementById('kpis-main').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gris4)">⏳ Cargando análisis...</div>';
     await renderKPIs();
     await renderDescuentos();
     await renderClientes();
     await renderChart();
+    await llenarDataListsAnal();
   });
 </script>
 </body>

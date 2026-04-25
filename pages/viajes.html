@@ -39,9 +39,11 @@
   <div class="kpi-grid" id="kpis-viajes" style="grid-template-columns:repeat(4,1fr)"></div>
 
   <!-- Filtros -->
+  <datalist id="dl-fleteros"></datalist>
+  <datalist id="dl-clientes"></datalist>
   <div class="filter-bar">
-    <input type="text" id="filtro-fletero" placeholder="🔍 Buscar fletero..." oninput="renderTabla()" style="width:200px">
-    <input type="text" id="filtro-cliente" placeholder="🔍 Cliente..." oninput="renderTabla()" style="width:200px">
+    <input type="text" id="filtro-fletero" list="dl-fleteros" placeholder="🔍 Buscar fletero..." autocomplete="off" oninput="renderTabla()" style="width:200px">
+    <input type="text" id="filtro-cliente" list="dl-clientes" placeholder="🔍 Cliente..." autocomplete="off" oninput="renderTabla()" style="width:200px">
     <input type="text" id="filtro-factura" placeholder="Nro factura" oninput="renderTabla()" style="width:130px">
     <select id="filtro-liquidado" onchange="renderTabla()" style="width:150px">
       <option value="">Todos</option>
@@ -369,10 +371,20 @@
     `;
   }
 
+
+  async function llenarDataLists() {
+    const todos = await DB.Viajes.getAll();
+    const fleteros = [...new Set(todos.map(v => v.fletero).filter(Boolean))].sort();
+    const clientes = [...new Set(todos.map(v => v.cliente).filter(Boolean))].sort();
+    document.getElementById('dl-fleteros').innerHTML = fleteros.map(f => `<option value="${f}">`).join('');
+    document.getElementById('dl-clientes').innerHTML = clientes.map(c => `<option value="${c}">`).join('');
+  }
+
   window.addEventListener('auth-ready', async () => {
     document.getElementById('tabla-body').innerHTML = '<tr><td colspan="15"><div class="loading" style="text-align:center;padding:30px;color:var(--gris4)">⏳ Cargando viajes...</div></td></tr>';
     await renderKPIs();
     await renderTabla();
+    await llenarDataLists();
   });
 
   // ── CARGA MÚLTIPLE ────────────────────────────────
