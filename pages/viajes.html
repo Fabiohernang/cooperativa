@@ -29,7 +29,10 @@
       <div class="page-title">📋 Viajes</div>
       <div class="page-sub">Registrá cada viaje. CTG único obligatorio. Comisiones se calculan solas.</div>
     </div>
-    <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo Viaje</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="abrirModalMultiple()">📋 Carga múltiple</button>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo Viaje</button>
+    </div>
   </div>
 
   <!-- KPIs rápidos -->
@@ -142,9 +145,9 @@
       <!-- Preview calculado -->
       <div style="margin-top:20px;padding:14px;background:var(--gris8);border-radius:var(--radius);border:1px solid var(--gris6)">
         <div class="section-title" style="margin-bottom:10px">Cálculo automático</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
           <div>
-            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">IMPORTE</div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">IMPORTE NETO</div>
             <div id="p-importe" style="font-family:var(--mono);font-weight:600">$0.00</div>
           </div>
           <div>
@@ -156,8 +159,12 @@
             <div id="p-com" style="font-family:var(--mono);font-weight:600;color:var(--verde2)">$0.00</div>
           </div>
           <div>
-            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">COMIS. MATÍAS (1.5%)</div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">COMIS. MATÍAS (1.5% neto)</div>
             <div id="p-mat" style="font-family:var(--mono);font-weight:600;color:var(--naranja2)">$0.00</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--gris4);margin-bottom:3px">KG × TARIFA</div>
+            <div id="p-formula" style="font-size:11px;color:var(--gris4);font-family:var(--mono)">—</div>
           </div>
         </div>
       </div>
@@ -171,29 +178,35 @@
 
 <script type="module" src="../js/nav.js"></script>
 <script>
-  // Funciones locales para no depender del timing de nav.js (module)
-  if (typeof hoy === 'undefined') window.hoy = () => new Date().toISOString().slice(0,10);
-  if (typeof fmt === 'undefined') window.fmt = n => n===undefined||n===null||n===''?'—':Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  if (typeof fmtFecha === 'undefined') window.fmtFecha = str => { if(!str)return'—'; const[y,m,d]=str.split('-'); return d+'/'+m+'/'+y; };
+  // Funciones definidas localmente — no dependen de nav.js
+  function hoy() { return new Date().toISOString().slice(0,10); }
+  function fmt(n) { if(n===undefined||n===null||n==='')return'—'; return Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function fmtFecha(str) { if(!str)return'—'; const[y,m,d]=str.split('-'); return d+'/'+m+'/'+y; }
 </script>
 <script>
   let editandoId = null;
 
 
   function calcularPreview() {
-    const tarifa = parseFloat(document.getElementById('f-tarifa').value) || 0;
-    const kg     = parseFloat(document.getElementById('f-kg').value) || 0;
-    const socio  = document.getElementById('f-socio').value;
+    const tarifa  = parseFloat(document.getElementById('f-tarifa').value) || 0;
+    const kg      = parseFloat(document.getElementById('f-kg').value) || 0;
+    const socio   = document.getElementById('f-socio').value;
     const factura = document.getElementById('f-factura').value.trim();
-    const imp    = tarifa * kg;
-    const iva    = imp * 1.21;
-    const pct    = socio === 'SI' ? 0.06 : 0.10;
-    const com    = iva * pct;
-    const mat    = factura ? iva * 0.015 : 0;
-    document.getElementById('p-importe').textContent = '$' + fmt(imp);
-    document.getElementById('p-iva').textContent     = '$' + fmt(iva);
-    document.getElementById('p-com').textContent     = '$' + fmt(com);
-    document.getElementById('p-mat').textContent     = '$' + fmt(mat);
+    // Config dinámica
+    const cfg = (() => { try { return JSON.parse(localStorage.getItem('coop_config_v1'))||{}; } catch { return {}; } })();
+    const pctSocio   = (cfg.pctSocio   ?? 6)   / 100;
+    const pctNoSocio = (cfg.pctNoSocio ?? 10)  / 100;
+    const pctMatias  = (cfg.pctMatias  ?? 1.5) / 100;
+    const imp  = tarifa * kg;                          // Neto
+    const iva  = imp * 1.21;                           // Con IVA
+    const pct  = socio === 'SI' ? pctSocio : pctNoSocio;
+    const com  = iva * pct;                            // Comisión sobre IVA
+    const mat  = factura ? imp * pctMatias : 0;        // Matías sobre NETO
+    document.getElementById('p-importe').textContent  = '$' + fmt(imp);
+    document.getElementById('p-iva').textContent      = '$' + fmt(iva);
+    document.getElementById('p-com').textContent      = '$' + fmt(com);
+    document.getElementById('p-mat').textContent      = '$' + fmt(mat);
+    document.getElementById('p-formula').textContent  = kg ? fmt(kg) + ' × $' + fmt(tarifa) : '—';
   }
 
   document.getElementById('f-socio').addEventListener('change', calcularPreview);
@@ -361,6 +374,236 @@
     await renderKPIs();
     await renderTabla();
   });
+
+  // ── CARGA MÚLTIPLE ────────────────────────────────
+  let filaCount = 0;
+
+  function abrirModalMultiple() {
+    filaCount = 0;
+    document.getElementById('mc-rows').innerHTML = '';
+    document.getElementById('mc-foot').innerHTML = '';
+    document.getElementById('mc-fecha').value   = hoy();
+    document.getElementById('mc-cliente').value = '';
+    document.getElementById('mc-factura').value = '';
+    document.getElementById('mc-origen').value  = '';
+    document.getElementById('mc-destino').value = '';
+    document.getElementById('mc-tarifa').value  = '';
+    document.getElementById('multi-error').style.display = 'none';
+    // Agregar 3 filas por defecto
+    agregarFilaMulti(); agregarFilaMulti(); agregarFilaMulti();
+    document.getElementById('modal-multiple-overlay').classList.add('open');
+  }
+
+  function cerrarModalMultiple() {
+    document.getElementById('modal-multiple-overlay').classList.remove('open');
+  }
+
+  function agregarFilaMulti() {
+    filaCount++;
+    const n = filaCount;
+    const tr = document.createElement('tr');
+    tr.id = 'mc-row-' + n;
+    tr.style.borderBottom = '1px solid var(--gris7)';
+    tr.innerHTML = `
+      <td style="padding:6px 10px;color:var(--gris4);font-family:var(--mono)">${n}</td>
+      <td style="padding:4px 6px"><input type="text" id="mc-flet-${n}" placeholder="Apellido Nombre" style="width:100%;font-size:12px;padding:5px 8px" oninput="calcFilaMulti(${n})"></td>
+      <td style="padding:4px 6px;text-align:center">
+        <select id="mc-socio-${n}" style="font-size:12px;padding:5px" onchange="calcFilaMulti(${n})">
+          <option value="SI">SI</option><option value="NO" selected>NO</option>
+        </select>
+      </td>
+      <td style="padding:4px 6px"><input type="text" id="mc-ctg-${n}" placeholder="CTG" style="width:130px;font-size:12px;padding:5px 8px"></td>
+      <td style="padding:4px 6px"><input type="number" id="mc-kg-${n}" placeholder="0.00" step="0.01" style="width:90px;font-size:12px;padding:5px 8px;text-align:right" oninput="calcFilaMulti(${n})"></td>
+      <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:12px" id="mc-neto-${n}">—</td>
+      <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--azul2)" id="mc-iva-${n}">—</td>
+      <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--verde2)" id="mc-com-${n}">—</td>
+      <td style="padding:4px 6px;text-align:center"><button onclick="quitarFilaMulti(${n})" style="background:none;border:none;cursor:pointer;color:var(--gris4);font-size:16px">×</button></td>
+    `;
+    document.getElementById('mc-rows').appendChild(tr);
+    actualizarTotalesMulti();
+  }
+
+  function quitarFilaMulti(n) {
+    const row = document.getElementById('mc-row-' + n);
+    if (row) row.remove();
+    actualizarTotalesMulti();
+  }
+
+  function calcFilaMulti(n) {
+    const tarifa = parseFloat(document.getElementById('mc-tarifa').value) || 0;
+    const kg     = parseFloat(document.getElementById('mc-kg-' + n)?.value) || 0;
+    const socio  = document.getElementById('mc-socio-' + n)?.value;
+    const factura= document.getElementById('mc-factura').value.trim();
+    const cfg = (() => { try { return JSON.parse(localStorage.getItem('coop_config_v1'))||{}; } catch { return {}; } })();
+    const pct = ((socio === 'SI' ? (cfg.pctSocio??6) : (cfg.pctNoSocio??10)) / 100);
+    const imp = tarifa * kg;
+    const iva = imp * 1.21;
+    const com = iva * pct;
+    const el_n = document.getElementById('mc-neto-' + n);
+    const el_i = document.getElementById('mc-iva-' + n);
+    const el_c = document.getElementById('mc-com-' + n);
+    if (el_n) el_n.textContent = kg > 0 ? '$' + fmt(imp) : '—';
+    if (el_i) el_i.textContent = kg > 0 ? '$' + fmt(iva) : '—';
+    if (el_c) el_c.textContent = kg > 0 ? '$' + fmt(com) : '—';
+    actualizarTotalesMulti();
+  }
+
+  // Recalcular todas las filas cuando cambia tarifa
+  document.addEventListener('input', e => {
+    if (e.target.id === 'mc-tarifa') {
+      document.querySelectorAll('[id^="mc-kg-"]').forEach(el => {
+        const n = el.id.replace('mc-kg-','');
+        calcFilaMulti(parseInt(n));
+      });
+    }
+  });
+
+  function actualizarTotalesMulti() {
+    let totNeto = 0, totIVA = 0, totCom = 0, count = 0;
+    document.querySelectorAll('[id^="mc-row-"]').forEach(row => {
+      const n = row.id.replace('mc-row-','');
+      const kg = parseFloat(document.getElementById('mc-kg-'+n)?.value)||0;
+      const flet = document.getElementById('mc-flet-'+n)?.value.trim();
+      if (kg > 0 && flet) count++;
+      const tarifa = parseFloat(document.getElementById('mc-tarifa').value)||0;
+      const socio  = document.getElementById('mc-socio-'+n)?.value;
+      const cfg = (() => { try { return JSON.parse(localStorage.getItem('coop_config_v1'))||{}; } catch { return {}; } })();
+      const pct = ((socio === 'SI' ? (cfg.pctSocio??6) : (cfg.pctNoSocio??10)) / 100);
+      const imp = tarifa * kg;
+      totNeto += imp;
+      totIVA  += imp * 1.21;
+      totCom  += imp * 1.21 * pct;
+    });
+    document.getElementById('mc-foot').innerHTML = totIVA > 0 ? `
+      <tr style="background:var(--gris7);font-weight:700">
+        <td colspan="5" style="padding:8px 10px">TOTAL</td>
+        <td style="padding:8px 10px;text-align:right;font-family:var(--mono)">$${fmt(totNeto)}</td>
+        <td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--azul2)">$${fmt(totIVA)}</td>
+        <td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--verde2)">$${fmt(totCom)}</td>
+        <td></td>
+      </tr>` : '';
+    document.getElementById('mc-contador').textContent = count + ' viaje' + (count !== 1 ? 's' : '') + ' listos para guardar';
+  }
+
+  async function guardarMultiple() {
+    const fecha   = document.getElementById('mc-fecha').value;
+    const cliente = document.getElementById('mc-cliente').value.trim();
+    const factura = document.getElementById('mc-factura').value.trim();
+    const origen  = document.getElementById('mc-origen').value.trim();
+    const destino = document.getElementById('mc-destino').value.trim();
+    const tarifa  = document.getElementById('mc-tarifa').value;
+    const errEl   = document.getElementById('multi-error');
+
+    if (!fecha || !cliente || !tarifa) {
+      errEl.textContent = '⚠️ Completá Fecha, Cliente y Tarifa en los datos comunes.';
+      errEl.style.display = 'flex'; return;
+    }
+
+    const filas = [];
+    let hayError = false;
+    document.querySelectorAll('[id^="mc-row-"]').forEach(row => {
+      const n    = row.id.replace('mc-row-','');
+      const flet = document.getElementById('mc-flet-'+n)?.value.trim();
+      const kg   = document.getElementById('mc-kg-'+n)?.value;
+      const ctg  = document.getElementById('mc-ctg-'+n)?.value.trim();
+      const socio= document.getElementById('mc-socio-'+n)?.value;
+      if (!flet && !kg) return; // fila vacía, ignorar
+      if (!flet || !kg) { hayError = true; return; }
+      filas.push({ fecha, cliente, factura, origen, destino, tarifa, fletero: flet, kg, ctg, socio, observaciones:'' });
+    });
+
+    if (hayError) {
+      errEl.textContent = '⚠️ Algunas filas tienen fletero sin KG o viceversa. Completá o borrá esas filas.';
+      errEl.style.display = 'flex'; return;
+    }
+    if (filas.length === 0) {
+      errEl.textContent = '⚠️ No hay filas completas para guardar.';
+      errEl.style.display = 'flex'; return;
+    }
+
+    const btnGuardar = document.querySelector('#modal-multiple-overlay .btn-success');
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = '⏳ Guardando...';
+    errEl.style.display = 'none';
+
+    const errores = [];
+    for (const f of filas) {
+      try { await DB.Viajes.add(f); }
+      catch(e) { errores.push(e.message); }
+    }
+
+    btnGuardar.disabled = false;
+    btnGuardar.textContent = '💾 Guardar todos';
+
+    if (errores.length > 0) {
+      errEl.textContent = '⚠️ Algunos viajes no se guardaron: ' + errores.join(' | ');
+      errEl.style.display = 'flex';
+    }
+
+    const ok = filas.length - errores.length;
+    if (ok > 0) {
+      cerrarModalMultiple();
+      await renderKPIs();
+      await renderTabla();
+      if (errores.length === 0) alert('✅ ' + ok + ' viaje' + (ok!==1?'s':'') + ' guardado' + (ok!==1?'s':'') + ' correctamente.');
+    }
+  }
 </script>
+
+<!-- MODAL CARGA MÚLTIPLE -->
+<div class="modal-overlay" id="modal-multiple-overlay" onclick="if(event.target===this)cerrarModalMultiple()" style="z-index:1000">
+  <div class="modal" style="max-width:1000px">
+    <div class="modal-header">
+      <div class="modal-title">📋 Carga Múltiple de Viajes</div>
+      <button class="btn-close" onclick="cerrarModalMultiple()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="multi-error" class="alert danger mb-16" style="display:none"></div>
+
+      <!-- Datos comunes -->
+      <div style="background:var(--gris8);border-radius:var(--radius);padding:14px;margin-bottom:16px;border:1px solid var(--gris6)">
+        <div class="section-title" style="margin-bottom:10px">Datos comunes a todos los viajes</div>
+        <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="form-group"><label>Fecha *</label><input type="date" id="mc-fecha"></div>
+          <div class="form-group"><label>Cliente *</label><input type="text" id="mc-cliente" placeholder="Cliente"></div>
+          <div class="form-group"><label>Nro. Factura</label><input type="text" id="mc-factura" placeholder="Opcional"></div>
+          <div class="form-group"><label>Origen</label><input type="text" id="mc-origen" placeholder="Origen"></div>
+          <div class="form-group"><label>Destino</label><input type="text" id="mc-destino" placeholder="Destino"></div>
+          <div class="form-group"><label>Tarifa ($/tn) *</label><input type="number" id="mc-tarifa" step="0.01" placeholder="0.00"></div>
+        </div>
+      </div>
+
+      <!-- Tabla de viajes -->
+      <div class="section-title" style="margin-bottom:8px">Viajes individuales <span style="font-weight:400;color:var(--gris4)">(completá fletero, socio, CTG y KG para cada uno)</span></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:12px;border-collapse:collapse" id="mc-tabla">
+          <thead>
+            <tr style="background:var(--gris2);color:var(--gris6)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase">#</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase">Fletero *</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;text-transform:uppercase">Socio</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase">CTG</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase">KG *</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase">Neto</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase">Imp+IVA</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase">Comisión</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;text-transform:uppercase"></th>
+            </tr>
+          </thead>
+          <tbody id="mc-rows"></tbody>
+          <tfoot id="mc-foot"></tfoot>
+        </table>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="agregarFilaMulti()" style="margin-top:10px">+ Agregar fila</button>
+
+    </div>
+    <div class="modal-footer">
+      <div style="font-size:12px;color:var(--gris4)" id="mc-contador">0 viajes listos para guardar</div>
+      <button class="btn btn-ghost" onclick="cerrarModalMultiple()">Cancelar</button>
+      <button class="btn btn-success" onclick="guardarMultiple()">💾 Guardar todos</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
